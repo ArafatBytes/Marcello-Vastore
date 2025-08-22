@@ -1,0 +1,205 @@
+'use client';
+
+import Link from 'next/link';
+import { Search, ShoppingBag, UserCircle, Menu, Heart, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from '@/components/ui/navigation-menu';
+
+// Custom font for the logo
+const logoFont = {
+  fontFamily: 'Playfair Display, serif',
+  fontWeight: 700,
+  letterSpacing: '0.05em',
+};
+
+export function Navbar() {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
+  
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    
+    const handleClickOutside = (event) => {
+      const isMenuButton = event.target.closest('button[aria-label*="menu"]');
+      const isInsideMenu = event.target.closest('.mobile-menu-container');
+      
+      if (!isMenuButton && !isInsideMenu) {
+        setIsMobileMenuOpen(false);
+        setActiveCategory(null);
+      }
+    };
+
+    // Use a slight delay to prevent the initial click from triggering the close
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navItems = {
+    'Atlier 1': [
+      'Ready-to-Wear',
+      'Shirts',
+      'Pants & Shorts',
+      'Co-Ord Capsule',
+      'Lustralis Estate'
+    ],
+    'Atlier 2': [
+      'Ready-to-Wear',
+      'Dresses',
+      'Tops',
+      'Skirts',
+      'Co-Ord Capsule',
+      'Riviera Vastore'
+    ]
+  };
+
+  return (
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-white'
+      }`}
+      style={{ zIndex: 100 }}
+    >
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 100 }}>
+        <div className="flex justify-between items-center h-20">
+          {/* Mobile menu button */}
+          <div className="flex items-center relative">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(prev => !prev);
+                if (isMobileMenuOpen) {
+                  setActiveCategory(null);
+                }
+              }}
+              className="p-2 rounded-md text-gray-700 hover:text-gray-900 focus:outline-none relative h-6 w-8 flex items-center justify-center"
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+              style={{ zIndex: 1000 }}
+            >
+              <div className="relative w-6 h-5">
+                <span 
+                  className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'top-0'}`}
+                />
+                <span 
+                  className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'bottom-0'}`}
+                />
+              </div>
+            </button>
+          </div>
+
+          {/* Desktop Navigation - Empty div to maintain layout */}
+          <div className="hidden md:block w-1/3"></div>
+
+
+
+          {/* Centered Logo */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <Link href="/" className="text-2xl md:text-3xl font-bold tracking-wider" style={logoFont}>
+              MARCELLO VASTORE
+            </Link>
+          </div>
+
+          {/* Right side icons */}
+          <div className="flex items-center space-x-6">
+            <button className="text-gray-700 hover:text-gray-900 transition-colors">
+              <Search className="h-5 w-5" />
+            </button>
+            <button className="text-gray-700 hover:text-gray-900 transition-colors">
+              <Heart className="h-5 w-5" />
+            </button>
+            <button className="text-gray-700 hover:text-gray-900 transition-colors relative">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                0
+              </span>
+            </button>
+            <button className="text-gray-700 hover:text-gray-900 transition-colors">
+              <UserCircle className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="fixed inset-x-0 top-20 bg-white shadow-lg z-40 py-6 mobile-menu-container"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center w-full">
+              <NavigationMenu>
+                <NavigationMenuList className="flex flex-col md:flex-row gap-8">
+                  {Object.entries(navItems).map(([category, items]) => (
+                    <NavigationMenuItem key={category} className="relative">
+                      <NavigationMenuTrigger className="w-full justify-between">
+                        {category}
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent className="w-full md:w-[600px]">
+                        <div className="p-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                              <h3 className="text-sm font-medium text-gray-900 border-b pb-2">
+                                {category} Collection
+                              </h3>
+                              <ul className="space-y-3">
+                                {items.map((item) => (
+                                  <li key={item}>
+                                    <Link
+                                      href={`/collections/${category.toLowerCase().replace(' ', '-')}/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                                      className="text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors block py-1.5 px-2 rounded"
+                                      onClick={() => {
+                                        setIsMobileMenuOpen(false);
+                                      }}
+                                    >
+                                      {item}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="bg-gray-50 rounded-md flex items-center justify-center p-8">
+                              <span className="text-gray-400 text-sm">Featured Collection</span>
+                            </div>
+                          </div>
+                        </div>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                  ))}
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
+}
