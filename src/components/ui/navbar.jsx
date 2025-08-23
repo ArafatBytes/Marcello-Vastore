@@ -62,19 +62,17 @@ export function Navbar() {
 
   const navItems = {
     'Atlier 1': [
-      'Ready-to-Wear',
-      'Shirts',
-      'Pants & Shorts',
-      'Co-Ord Capsule',
-      'Lustralis Estate'
+      { name: 'Shirts', slug: 'atelier-1-shirts' },
+      { name: 'Pants & Shorts', slug: 'atelier-1-pants-shorts' },
+      { name: 'Co-Ord Capsule', slug: 'atelier-1-co-ord-capsule' },
+      { name: 'Lustralis Estate', slug: 'atelier-1-lustralis-estate' }
     ],
     'Atlier 2': [
-      'Ready-to-Wear',
-      'Dresses',
-      'Tops',
-      'Skirts',
-      'Co-Ord Capsule',
-      'Riviera Vastore'
+      { name: 'Dresses', slug: 'atelier-2-dresses' },
+      { name: 'Tops', slug: 'atelier-2-tops' },
+      { name: 'Skirts', slug: 'atelier-2-skirts' },
+      { name: 'Co-Ord Capsule', slug: 'atelier-2-co-ord-capsule' },
+      { name: 'Riviera Vastore', slug: 'atelier-2-riviera-vastore' }
     ]
   };
 
@@ -174,13 +172,13 @@ export function Navbar() {
                                 {items.map((item) => (
                                   <li key={item}>
                                     <Link
-                                      href={`/collections/${category.toLowerCase().replace(' ', '-')}/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                                      href={`/collections/${item.slug}`}
                                       className="text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors block py-1.5 px-2 rounded"
                                       onClick={() => {
                                         setIsMobileMenuOpen(false);
                                       }}
                                     >
-                                      {item}
+                                      {item.name}
                                     </Link>
                                   </li>
                                 ))}

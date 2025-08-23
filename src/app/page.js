@@ -10,6 +10,13 @@ const playfair = Playfair_Display({
   variable: '--font-playfair',
 });
 
+// Custom font for the logo
+const logoFont = {
+  fontFamily: 'Playfair Display, serif',
+  fontWeight: 700,
+  letterSpacing: '0.05em',
+};
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const categoriesRef = useRef(null);
@@ -70,10 +77,10 @@ export default function Home() {
                 className="max-w-3xl mx-auto"
                 key="hero-content"
               >
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6" style={logoFont}>
               Elevate Your Style
             </h1>
-            <p className="text-lg sm:text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-700 mb-8 max-w-2xl mx-auto" style={logoFont}>
               Discover the latest collection of premium fashion for the modern individual. 
               Timeless pieces designed for those who appreciate quality and style.
             </p>
