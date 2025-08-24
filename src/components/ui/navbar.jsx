@@ -168,6 +168,9 @@ export function Navbar() {
                               <h3 className="text-sm font-medium text-gray-900 border-b pb-2">
                                 {category} Collection
                               </h3>
+                              <div className="text-sm font-medium text-gray-900 py-1">
+                                Ready-to-wear
+                              </div>
                               <ul className="space-y-3">
                                 {items.map((item) => (
                                   <li key={item}>
