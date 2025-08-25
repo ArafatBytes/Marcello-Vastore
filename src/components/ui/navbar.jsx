@@ -1,9 +1,14 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, ShoppingBag, UserCircle, Menu, Heart, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import SearchModal from './SearchModal';
+import { AnimatePresence } from 'framer-motion';
+
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -22,6 +27,12 @@ const logoFont = {
 };
 
 export function Navbar() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [activeIcon, setActiveIcon] = useState(null);
+  const pathname = usePathname();
+  const router = useRouter();
+
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -76,45 +87,63 @@ export function Navbar() {
     ]
   };
 
+  // --- Highlight Bar State ---
+  const iconRefs = {
+    search: React.useRef(null),
+    heart: React.useRef(null),
+    bag: React.useRef(null),
+    user: React.useRef(null)
+  };
+  const navBarRef = React.useRef(null);
+
+  // Determine which icon is currently 'active' for highlight
+  let highlight = null;
+  if (activeIcon === 'search') highlight = 'search';
+  else if (!isSearchOpen && pathname.startsWith('/favorites')) highlight = 'heart';
+  else if (!isSearchOpen && pathname.startsWith('/cart')) highlight = 'bag';
+  else if (!isSearchOpen && (pathname.startsWith('/login') || pathname.startsWith('/register'))) highlight = 'user';
+
+
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-white'
-      }`}
-      style={{ zIndex: 100 }}
-    >
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 100 }}>
-        <div className="flex justify-between items-center h-20">
-          {/* Mobile menu button */}
-          <div className="flex items-center relative">
-            <button
-              onClick={() => {
-                setIsMobileMenuOpen(prev => !prev);
-                if (isMobileMenuOpen) {
-                  setActiveCategory(null);
-                }
-              }}
-              className="p-2 rounded-md text-gray-700 hover:text-gray-900 focus:outline-none relative h-6 w-8 flex items-center justify-center"
-              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-              style={{ zIndex: 1000 }}
-            >
-              <div className="relative w-6 h-5">
-                <span 
-                  className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'top-0'}`}
-                />
-                <span 
-                  className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'bottom-0'}`}
-                />
-              </div>
-            </button>
-          </div>
+    <>
+      <header 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-white'
+        }`}
+        style={{ zIndex: 100 }}
+      >
+        <nav ref={navBarRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 100 }}>
+          <div className="flex justify-between items-center h-20">
+            {/* Mobile menu button */}
+            <div className="flex items-center relative">
+              {!isSearchOpen && (
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(prev => !prev);
+                    if (isMobileMenuOpen) {
+                      setActiveCategory(null);
+                    }
+                  }}
+                  className="p-2 rounded-md text-gray-700 hover:text-gray-900 focus:outline-none relative h-6 w-8 flex items-center justify-center"
+                  aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                  style={{ zIndex: 1000 }}
+                >
+                  <div className="relative w-6 h-5">
+                    <span 
+                      className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'top-0'}`}
+                    />
+                    <span 
+                      className={`absolute left-0 w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'top-1/2 -translate-y-1/2' : 'bottom-0'}`}
+                    />
+                  </div>
+                </button>
+              )}
+            </div>
 
-          {/* Desktop Navigation - Empty div to maintain layout */}
-          <div className="hidden md:block w-1/3"></div>
+            {/* Desktop Navigation - Empty div to maintain layout */}
+            <div className="hidden md:block w-1/3"></div>
 
-
-
-          {/* Centered Logo */}
+            {/* Centered Logo */}
           <div className="absolute left-1/2 transform -translate-x-1/2">
             <Link href="/" className="text-2xl md:text-3xl font-bold tracking-wider" style={logoFont}>
               MARCELLO VASTORE
@@ -123,20 +152,65 @@ export function Navbar() {
 
           {/* Right side icons */}
           <div className="flex items-center space-x-6">
-            <button className="text-gray-700 hover:text-gray-900 transition-colors">
-              <Search className="h-5 w-5" />
-            </button>
-            <button className="text-gray-700 hover:text-gray-900 transition-colors">
-              <Heart className="h-5 w-5" />
-            </button>
-            <button className="text-gray-700 hover:text-gray-900 transition-colors relative">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
-                0
+            <button
+              className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
+              onClick={() => {
+                setIsSearchOpen(true);
+                setActiveIcon('search');
+              }}
+              aria-label="Open search"
+            >
+              <span className="relative flex flex-col items-center" ref={iconRefs.search}>
+                <Search className="h-5 w-5" />
+                
               </span>
             </button>
-            <button className="text-gray-700 hover:text-gray-900 transition-colors">
-              <UserCircle className="h-6 w-6" />
+            <button
+              className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
+              aria-label="Favorites"
+              onClick={() => {
+                if (isSearchOpen) setIsSearchOpen(false);
+                setActiveIcon(null);
+                router.push('/favorites');
+              }}
+            >
+              <span className="relative flex flex-col items-center" ref={iconRefs.heart}>
+                <Heart className="h-5 w-5" />
+                
+              </span>
+            </button>
+            <button
+              className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
+              aria-label="Cart"
+              ref={iconRefs.bag}
+              onClick={() => {
+                if (isSearchOpen) setIsSearchOpen(false);
+                setActiveIcon(null);
+                router.push('/cart');
+              }}
+            >
+              <div className="relative flex flex-col items-center">
+                <ShoppingBag className="h-5 w-5" />
+                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                  0
+                </span>
+                
+              </div>
+            </button>
+            <button
+              className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
+              aria-label="User"
+              ref={iconRefs.user}
+              onClick={() => {
+                if (isSearchOpen) setIsSearchOpen(false);
+                setActiveIcon(null);
+                router.push('/login');
+              }}
+            >
+              <span className="relative flex flex-col items-center">
+                <UserCircle className="h-6 w-6" />
+                
+              </span>
             </button>
           </div>
         </div>
@@ -202,5 +276,7 @@ export function Navbar() {
         )}
       </AnimatePresence>
     </header>
+    <SearchModal open={isSearchOpen} onClose={() => { setIsSearchOpen(false); setActiveIcon(null); }} />
+    </>
   );
 }
