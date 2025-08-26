@@ -57,7 +57,9 @@ export default function LoginPage() {
             <li className="flex items-start gap-3 text-[15px] text-[#222]"><Heart className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Save items to your Wishlist.</span></li>
             <li className="flex items-start gap-3 text-[15px] text-[#222]"><CreditCard className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Checkout faster.</span></li>
           </ul>
+          <Link href="/register">
           <button className="w-full border-2 border-[#222] text-[#222] rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#fafafa] transition-colors">CREATE ACCOUNT</button>
+          </Link>
         </div>
       </div>
     </main>
