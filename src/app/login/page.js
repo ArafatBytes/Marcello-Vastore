@@ -2,9 +2,51 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Truck, Eye, EyeOff, Info, ClipboardList, Lock, Heart, CreditCard } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        if (remember) {
+          // Store JWT for 15 days
+          localStorage.setItem('jwt', data.token);
+          sessionStorage.removeItem('jwt');
+        } else {
+          // Store JWT for session only
+          sessionStorage.setItem('jwt', data.token);
+          localStorage.removeItem('jwt');
+        }
+        // Force navbar to update by triggering a storage event
+        window.dispatchEvent(new Event('storage'));
+        // Also trigger a custom event for immediate navbar update
+        window.dispatchEvent(new Event('custom-login'));
+        toast.success('Login successful!');
+        // Optionally redirect, e.g. window.location.href = '/';
+      } else {
+        toast.error(data.error || 'Login failed');
+      }
+    } catch (err) {
+      toast.error('Something went wrong.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <main className="bg-[#fafafa] min-h-screen flex items-center justify-center px-4 py-4">
       <div className="bg-white max-w-4xl w-full rounded-md shadow-sm border border-[#ede9df] flex flex-row px-4">
@@ -16,20 +58,20 @@ export default function LoginPage() {
           </div>
           <h2 className="text-[26px] font-bold text-[#222] mb-4">SIGN-IN</h2>
           <p className="text-[15px] text-[#222] mb-6">Sign-in with your email address and password</p>
-          <form className="flex flex-col gap-4">
+          <form className="flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="flex flex-col gap-1">
               <label htmlFor="email" className="text-[14px] text-[#222] font-medium">Email Address <span className="text-[#888] font-normal">*</span></label>
-              <input id="email" type="email" required placeholder="Email Address *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222]" />
+              <input id="email" type="email" required placeholder="Email Address *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222]" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1 relative">
               <label htmlFor="password" className="text-[14px] text-[#222] font-medium">Password <span className="text-[#888] font-normal">*</span></label>
-              <input id="password" type={showPassword ? 'text' : 'password'} required placeholder="Password *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] pr-10" />
+              <input id="password" type={showPassword ? 'text' : 'password'} required placeholder="Password *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] pr-10" value={password} onChange={e => setPassword(e.target.value)} />
               <button type="button" className="absolute right-3 top-9 text-[#888]" tabIndex={-1} onClick={() => setShowPassword(v => !v)} aria-label="Toggle password visibility">
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             <div className="flex items-center mt-2 mb-2">
-              <input type="checkbox" id="remember" className="accent-[#222] w-4 h-4 mr-2" />
+              <input type="checkbox" id="remember" className="accent-[#222] w-4 h-4 mr-2" checked={remember} onChange={e => setRemember(e.target.checked)} />
               <label htmlFor="remember" className="text-[14px] text-[#222] mr-2">Remember Me</label>
               <span className="relative group ml-1">
                 <Info className="w-4 h-4 text-[#888] cursor-pointer" />
@@ -40,7 +82,7 @@ export default function LoginPage() {
               <div className="flex-1" />
               <Link href="#" className="text-[14px] text-[#222] underline ml-2">Forgot Password?</Link>
             </div>
-            <button type="submit" className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors">SIGN-IN</button>
+            <button type="submit" className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors" disabled={isSubmitting}>{isSubmitting ? 'Signing In...' : 'SIGN-IN'}</button>
           </form>
         </div>
         {/* Custom vertical divider */}

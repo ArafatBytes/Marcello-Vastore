@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Info, User, Mail, Phone, Lock, MapPin, Home, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { toast } from 'react-hot-toast';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -20,12 +22,75 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Password validation logic
+  // Form field states
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Field error states
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [shippingError, setShippingError] = useState('');
+  const [billingError, setBillingError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+  // Validators
+  function validateName(val) {
+    if (!val.trim()) return 'Full name is required.';
+    if (val.trim().split(' ').length < 2) return 'Please enter your first and last name.';
+    if (!/^([A-Za-z]+\s)+[A-Za-z]+$/.test(val.trim())) return 'Name should only contain letters and spaces.';
+    return '';
+  }
+  function validateEmail(val) {
+    if (!val.trim()) return 'Email is required.';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val.trim())) return 'Invalid email address.';
+    return '';
+  }
+  function validatePhone(val) {
+    if (!val.trim()) return 'Phone number is required.';
+    try {
+      if (!isValidPhoneNumber(val)) return 'Invalid phone number.';
+    } catch {
+      return 'Invalid phone number.';
+    }
+    return '';
+  }
+  function validateShipping(val) {
+    if (!val.trim()) return 'Shipping address is required.';
+    if (val.trim().length < 8) return 'Shipping address is too short.';
+    return '';
+  }
+  function validateBilling(val) {
+    if (!val.trim()) return 'Billing address is required.';
+    if (val.trim().length < 8) return 'Billing address is too short.';
+    return '';
+  }
   function validatePassword(pw) {
     if (!pw || pw.length < 8) return 'Password must be at least 8 characters.';
     if (!/[a-zA-Z]/.test(pw)) return 'Password must contain a letter.';
     if (!/[0-9]/.test(pw)) return 'Password must contain a number.';
     return '';
+  }
+  function handleNameChange(e) {
+    setName(e.target.value);
+    setNameError(validateName(e.target.value));
+  }
+  function handleEmailChange(e) {
+    setEmail(e.target.value);
+    setEmailError(validateEmail(e.target.value));
+  }
+  function handlePhoneChange(e) {
+    setPhone(e.target.value);
+    setPhoneError(validatePhone(e.target.value));
+  }
+  function handleShippingChange(e) {
+    setShippingAddress(e.target.value);
+    setShippingError(validateShipping(e.target.value));
+  }
+  function handleBillingChange(e) {
+    setBillingAddress(e.target.value);
+    setBillingError(validateBilling(e.target.value));
   }
   function handlePasswordChange(e) {
     setPassword(e.target.value);
@@ -34,8 +99,9 @@ export default function RegisterPage() {
   function handleConfirmPasswordChange(e) {
     setConfirmPassword(e.target.value);
     if (e.target.value !== password) {
-      setPasswordError('Passwords do not match.');
+      setConfirmPasswordError('Passwords do not match.');
     } else {
+      setConfirmPasswordError('');
       setPasswordError(validatePassword(password));
     }
   }
@@ -44,6 +110,63 @@ export default function RegisterPage() {
   React.useEffect(() => {
     if (billingSame) setBillingAddress(shippingAddress);
   }, [billingSame, shippingAddress]);
+
+  // Register form submit handler
+  async function handleRegister(e) {
+    e.preventDefault();
+    // Validate all fields
+    const errors = {
+      name: validateName(name),
+      email: validateEmail(email),
+      phone: validatePhone(phone),
+      shipping: validateShipping(shippingAddress),
+      billing: billingSame ? validateShipping(shippingAddress) : validateBilling(billingAddress),
+      password: validatePassword(password),
+      confirmPassword: confirmPassword !== password ? 'Passwords do not match.' : '',
+    };
+    setNameError(errors.name);
+    setEmailError(errors.email);
+    setPhoneError(errors.phone);
+    setShippingError(errors.shipping);
+    setBillingError(errors.billing);
+    setPasswordError(errors.password);
+    setConfirmPasswordError(errors.confirmPassword);
+    const hasError = Object.values(errors).some(Boolean);
+    if (hasError) {
+      toast.error('Please correct the errors in the form.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const [firstName, ...lastArr] = name.split(' ');
+      const lastName = lastArr.join(' ');
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          lastName,
+          phone,
+          newsletter: subscribed,
+          billingAddress: { address: billingSame ? shippingAddress : billingAddress },
+          shippingAddress: { address: shippingAddress },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Registration successful!');
+        setName(''); setEmail(''); setPhone(''); setPassword(''); setConfirmPassword(''); setShippingAddress(''); setBillingAddress(''); setSubscribed(false); setBillingSame(true);
+      } else {
+        toast.error(data.error || 'Registration failed');
+      }
+    } catch (err) {
+      toast.error('Something went wrong.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <main className="bg-[#fafafa] min-h-screen flex items-center justify-center px-4 py-8">
@@ -55,29 +178,32 @@ export default function RegisterPage() {
       >
         <h2 className="text-[28px] font-bold text-[#222] mb-2 text-center tracking-tight">Create Your Account</h2>
         <p className="text-[15px] text-[#444] mb-8 text-center">Sign up to Marcello Vastore for a personalized shopping experience.</p>
-        <form className="flex flex-col gap-4">
+        <form className="flex flex-col gap-4" onSubmit={handleRegister}>
           {/* Name */}
           <div className="flex flex-col gap-1">
             <label htmlFor="name" className="text-[14px] text-[#222] font-medium">Full Name <span className="text-[#888] font-normal">*</span></label>
             <div className="relative flex items-center">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888] w-5 h-5" />
-              <input id="name" type="text" required placeholder="Full Name *" className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full" />
+              <input id="name" type="text" required placeholder="Full Name *" className={`pl-10 border ${nameError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full`} value={name} onChange={e => { setName(e.target.value); setNameError(''); }} />
             </div>
+            {nameError && <span className="text-xs text-red-500 mt-1">{nameError}</span>}
           </div>
           {/* Email */}
           <div className="flex flex-col gap-1">
             <label htmlFor="email" className="text-[14px] text-[#222] font-medium">Email <span className="text-[#888] font-normal">*</span></label>
             <div className="relative flex items-center">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888] w-5 h-5" />
-              <input id="email" type="email" required placeholder="Email *" className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full" />
+              <input id="email" type="email" required placeholder="Email *" className={`pl-10 border ${emailError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full`} value={email} onChange={e => { setEmail(e.target.value); setEmailError(''); }} />
             </div>
+            {emailError && <span className="text-xs text-red-500 mt-1">{emailError}</span>}
           </div>
           {/* Phone */}
           <div className="flex flex-col gap-1">
             <label htmlFor="phone" className="text-[14px] text-[#222] font-medium">Phone Number <span className="text-[#888] font-normal">*</span></label>
             <div className="w-full">
-              <PhoneInput className="w-full" value={phone} onChange={e => setPhone(e.target.value)} />
+              <PhoneInput className={`w-full ${phoneError ? 'border-red-400' : ''}`} value={phone} onChange={e => { setPhone(e.target.value); setPhoneError(''); }} />
             </div>
+            {phoneError && <span className="text-xs text-red-500 mt-1">{phoneError}</span>}
           </div>
           {/* Passwords */}
           <div className="flex flex-row gap-4">
@@ -90,27 +216,16 @@ export default function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Password *"
-                  className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full"
+                  className={`pl-10 border ${passwordError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full`}
                   minLength={8}
                   value={password}
-                  onChange={handlePasswordChange}
+                  onChange={e => { handlePasswordChange(e); setPasswordError(''); }}
                 />
                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888]" tabIndex={-1} onClick={() => setShowPassword(v => !v)} aria-label="Toggle password visibility">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <AnimatePresence>
-                {password && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className={`text-xs mt-1 ${passwordError ? 'text-red-500' : 'text-green-600'}`}
-                  >
-                    {passwordError ? passwordError : 'Password is valid.'}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {passwordError && <span className="text-xs text-red-500 mt-1">{passwordError}</span>}
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <label htmlFor="confirmPassword" className="text-[14px] text-[#222] font-medium">Confirm Password <span className="text-[#888] font-normal">*</span></label>
@@ -121,27 +236,16 @@ export default function RegisterPage() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   required
                   placeholder="Confirm Password *"
-                  className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full"
+                  className={`pl-10 border ${confirmPasswordError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] w-full`}
                   minLength={8}
                   value={confirmPassword}
-                  onChange={handleConfirmPasswordChange}
+                  onChange={e => { handleConfirmPasswordChange(e); setConfirmPasswordError(''); }}
                 />
                 <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888]" tabIndex={-1} onClick={() => setShowConfirmPassword(v => !v)} aria-label="Toggle password visibility">
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <AnimatePresence>
-                {confirmPassword && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className={`text-xs mt-1 ${confirmPassword !== password ? 'text-red-500' : !passwordError && confirmPassword ? 'text-green-600' : ''}`}
-                  >
-                    {confirmPassword !== password ? 'Passwords do not match.' : (!passwordError && confirmPassword ? 'Passwords match.' : '')}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {confirmPasswordError && <span className="text-xs text-red-500 mt-1">{confirmPasswordError}</span>}
             </div>
           </div>
           {/* Shipping Address */}
@@ -149,8 +253,9 @@ export default function RegisterPage() {
             <label htmlFor="shipping" className="text-[14px] text-[#222] font-medium">Shipping Address <span className="text-[#888] font-normal">*</span></label>
             <div className="relative flex items-center">
               <MapPin className="absolute left-3 top-4 text-[#888] w-5 h-5" />
-              <textarea id="shipping" required placeholder="Shipping Address *" className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] resize-none min-h-[56px] w-full" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} />
+              <textarea id="shipping" required placeholder="Shipping Address *" className={`pl-10 border ${shippingError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] resize-none min-h-[56px] w-full`} value={shippingAddress} onChange={e => { setShippingAddress(e.target.value); setShippingError(''); }} />
             </div>
+            {shippingError && <span className="text-xs text-red-500 mt-1">{shippingError}</span>}
           </div>
           {/* Billing Address */}
           <div className="flex items-center gap-2 mb-2">
@@ -167,8 +272,9 @@ export default function RegisterPage() {
             <label htmlFor="billing" className="text-[14px] text-[#222] font-medium">Billing Address <span className="text-[#888] font-normal">*</span></label>
             <div className="relative flex items-center">
               <Home className="absolute left-3 top-4 text-[#888] w-5 h-5" />
-              <textarea id="billing" required placeholder="Billing Address *" className="pl-10 border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] resize-none min-h-[56px] w-full" value={billingAddress} onChange={e => setBillingAddress(e.target.value)} disabled={billingSame} />
+              <textarea id="billing" required placeholder="Billing Address *" className={`pl-10 border ${billingError ? 'border-red-400' : 'border-[#ede9df]'} rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] resize-none min-h-[56px] w-full`} value={billingAddress} onChange={e => { setBillingAddress(e.target.value); setBillingError(''); }} disabled={billingSame} />
             </div>
+            {billingError && <span className="text-xs text-red-500 mt-1">{billingError}</span>}
           </motion.div>
           {/* Newsletter */}
           <div className="flex items-center gap-2 mb-2">
@@ -182,12 +288,13 @@ export default function RegisterPage() {
             </span>
           </div>
           <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: isSubmitting ? 1 : 1.03 }}
+            whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
             type="submit"
-            className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors"
+            className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={isSubmitting}
           >
-            SIGN UP
+            {isSubmitting ? 'Registering...' : 'SIGN UP'}
           </motion.button>
         </form>
       </motion.div>

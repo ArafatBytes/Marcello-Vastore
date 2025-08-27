@@ -29,6 +29,27 @@ const logoFont = {
 export function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeIcon, setActiveIcon] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Track login status by checking for JWT in localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkLoggedIn = () => {
+        setIsLoggedIn(!!localStorage.getItem('jwt') || !!sessionStorage.getItem('jwt'));
+      };
+      checkLoggedIn();
+      const handleStorage = () => {
+        checkLoggedIn();
+      };
+      window.addEventListener('storage', handleStorage);
+      // Listen for custom login event for immediate UI update
+      window.addEventListener('custom-login', handleStorage);
+      return () => {
+        window.removeEventListener('storage', handleStorage);
+        window.removeEventListener('custom-login', handleStorage);
+      };
+    }
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -197,21 +218,22 @@ export function Navbar() {
                 
               </div>
             </button>
-            <button
-              className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
-              aria-label="User"
-              ref={iconRefs.user}
-              onClick={() => {
-                if (isSearchOpen) setIsSearchOpen(false);
-                setActiveIcon(null);
-                router.push('/login');
-              }}
-            >
-              <span className="relative flex flex-col items-center">
-                <UserCircle className="h-6 w-6" />
-                
-              </span>
-            </button>
+            {isLoggedIn && (
+              <button
+                className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
+                aria-label="User"
+                ref={iconRefs.user}
+                onClick={() => {
+                  if (isSearchOpen) setIsSearchOpen(false);
+                  setActiveIcon(null);
+                  router.push('/account');
+                }}
+              >
+                <span className="relative flex flex-col items-center">
+                  <UserCircle className="h-6 w-6" />
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </nav>

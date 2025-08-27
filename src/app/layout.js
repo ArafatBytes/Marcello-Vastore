@@ -3,6 +3,7 @@ import { Playfair_Display } from 'next/font/google';
 import "./globals.css";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
+import { Toaster } from "react-hot-toast";
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -33,6 +34,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased bg-white`}
       >
+        <Toaster position="top-center" />
         <Navbar />
         <main className="pt-16 min-h-screen">
           {children}
