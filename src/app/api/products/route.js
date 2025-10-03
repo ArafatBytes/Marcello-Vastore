@@ -1,23 +1,79 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { uploadImage, deleteImage } from '@/lib/cloudinary';
+
+// Helper function to parse form data
+async function parseFormData(request) {
+  const formData = await request.formData();
+  const body = {};
+  const imageFile = formData.get('image');
+  
+  // Convert FormData entries to object
+  for (const [key, value] of formData.entries()) {
+    if (key !== 'image') {
+      body[key] = value;
+    }
+  }
+  
+  return { ...body, imageFile };
+}
 
 // PATCH: Edit a product (admin only)
 export async function PATCH(request) {
   try {
-    const body = await request.json();
-    const { _id, name, price, image } = body;
-    if (!_id || (!name && !price && !image)) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const formData = await parseFormData(request);
+    const { _id, name, price, imageFile } = formData;
+    
+    if (!_id) {
+      return NextResponse.json({ error: 'Missing product ID' }, { status: 400 });
     }
+    
     const client = await clientPromise;
     const db = client.db();
     const products = db.collection('products');
+    
+    // Get existing product to handle image deletion if needed
+    const existingProduct = await products.findOne({ _id: new (await import('mongodb')).ObjectId(_id) });
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
     const update = { updatedAt: new Date() };
     if (name) update.name = name;
-    if (price) update.price = price;
-    if (image) update.image = image;
-    const result = await products.updateOne({ _id: new (await import('mongodb')).ObjectId(_id) }, { $set: update });
-    if (!result.matchedCount) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (price) update.price = parseFloat(price);
+    
+    // Handle new image upload if provided
+    if (imageFile && imageFile.size > 0) {
+      // Convert file to base64 for Cloudinary
+      const buffer = await imageFile.arrayBuffer();
+      const base64Data = Buffer.from(buffer).toString('base64');
+      const dataUri = `data:${imageFile.type};base64,${base64Data}`;
+      
+      // Upload new image to Cloudinary
+      const imageUrl = await uploadImage(dataUri);
+      update.image = imageUrl;
+      
+      // Delete old image from Cloudinary if it exists
+      if (existingProduct.image) {
+        try {
+          const publicId = existingProduct.image.split('/').pop().split('.')[0];
+          await deleteImage(publicId);
+        } catch (error) {
+          console.error('Error deleting old image from Cloudinary:', error);
+          // Continue even if deletion fails
+        }
+      }
+    }
+    
+    const result = await products.updateOne(
+      { _id: new (await import('mongodb')).ObjectId(_id) },
+      { $set: update }
+    );
+    
+    if (!result.matchedCount) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Product PATCH error:', err);
@@ -30,13 +86,40 @@ export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const _id = searchParams.get('id');
-    const body = await request.json();
-    if (!_id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    
+    if (!_id) {
+      return NextResponse.json({ error: 'Missing product ID' }, { status: 400 });
+    }
+    
     const client = await clientPromise;
     const db = client.db();
     const products = db.collection('products');
+    
+    // Get product to delete its image from Cloudinary
+    const product = await products.findOne({ _id: new (await import('mongodb')).ObjectId(_id) });
+    
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    // Delete image from Cloudinary if it exists
+    if (product.image) {
+      try {
+        const publicId = product.image.split('/').pop().split('.')[0];
+        await deleteImage(publicId);
+      } catch (error) {
+        console.error('Error deleting image from Cloudinary:', error);
+        // Continue with product deletion even if image deletion fails
+      }
+    }
+    
+    // Delete product from database
     const result = await products.deleteOne({ _id: new (await import('mongodb')).ObjectId(_id) });
-    if (!result.deletedCount) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    
+    if (!result.deletedCount) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Product DELETE error:', err);
@@ -47,30 +130,47 @@ export async function DELETE(request) {
 // POST: Add a new product (admin only)
 export async function POST(request) {
   try {
-    const body = await request.json();
-
-    const { name, price, image, collection, category } = body;
-    if (!name || !price || !image || !collection || !category) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const formData = await parseFormData(request);
+    const { name, price, collection: collectionName, category, imageFile } = formData;
+    
+    if (!name || !price || !collectionName || !category || !imageFile) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    // Store image as base64url string
+    
+    // Convert file to base64 for Cloudinary
+    const buffer = await imageFile.arrayBuffer();
+    const base64Data = Buffer.from(buffer).toString('base64');
+    const dataUri = `data:${imageFile.type};base64,${base64Data}`;
+    
+    // Upload image to Cloudinary
+    const imageUrl = await uploadImage(dataUri);
+    
     const client = await clientPromise;
     const db = client.db();
     const products = db.collection('products');
+    
     const productDoc = {
       name,
-      price,
-      image, // base64url string
-      collection,
+      price: parseFloat(price),
+      image: imageUrl, // Store Cloudinary URL
+      collection: collectionName,
       category,
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    await products.insertOne(productDoc);
-    return NextResponse.json({ success: true, product: productDoc });
+    
+    const result = await products.insertOne(productDoc);
+    
+    return NextResponse.json({
+      success: true,
+      product: {
+        _id: result.insertedId,
+        ...productDoc
+      }
+    });
   } catch (err) {
     console.error('Product POST error:', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Server error: ' + err.message }, { status: 500 });
   }
 }
 

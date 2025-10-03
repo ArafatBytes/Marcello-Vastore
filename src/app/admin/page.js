@@ -242,12 +242,13 @@ function ProductManager({ collection, category }) {
   function handleInputChange(e) {
     const { name, value, files } = e.target;
     if (name === 'image' && files && files[0]) {
+      const file = files[0];
       const reader = new FileReader();
       reader.onload = (ev) => {
         setForm(f => ({ ...f, image: ev.target.result }));
-        setImageFile(files[0]);
+        setImageFile(file);
       };
-      reader.readAsDataURL(files[0]);
+      reader.readAsDataURL(file);
     } else {
       setForm(f => ({ ...f, [name]: value }));
     }
@@ -277,39 +278,60 @@ function ProductManager({ collection, category }) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
     try {
-      const payload = {
-        name: form.name,
-        price: form.price,
-        image: form.image,
-        collection,
-        category,
-
-      };
-      let res, data;
-      if (editing) {
-        payload._id = editing._id;
-        res = await fetch('/api/products', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to update');
-      } else {
-        res = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to add');
+      const formData = new FormData();
+      
+      // Add text fields
+      formData.append('name', form.name);
+      formData.append('price', form.price);
+      formData.append('collection', collection);
+      formData.append('category', category);
+      
+      // Add image file if it's a new file
+      if (imageFile) {
+        formData.append('image', imageFile);
+      } else if (editing && form.image) {
+        // If editing and no new image, keep the existing image URL
+        formData.append('image', form.image);
+      } else if (!editing) {
+        // Only require image for new products
+        throw new Error('Image is required for new products');
       }
+      
+      let url = '/api/products';
+      let method = 'POST';
+      
+      if (editing) {
+        // For editing, we need to send the _id in the form data
+        formData.append('_id', editing._id);
+        method = 'PATCH';
+      }
+      
+      const response = await fetch(url, {
+        method,
+        body: formData,
+        // Don't set Content-Type header - let the browser set it with the correct boundary
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || (editing ? 'Failed to update product' : 'Failed to create product'));
+      }
+      
+      // Refresh products
+      const productsRes = await fetch(`/api/products?collection=${encodeURIComponent(collection)}&category=${encodeURIComponent(category)}`);
+      const productsData = await productsRes.json();
+      setProducts(productsData.products || []);
       closeModal();
-      router.refresh && router.refresh();
-      if (typeof window !== 'undefined') window.location.reload();
+      
+      // Reset the form and image file
+      setForm({ name: '', price: '', image: '' });
+      setImageFile(null);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An error occurred');
+      console.error('Error submitting form:', err);
     } finally {
       setLoading(false);
     }
