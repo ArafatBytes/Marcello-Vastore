@@ -31,8 +31,8 @@ export function CategoryLayout({ title, description, products = [], loading = fa
           // Render products when not loading and products exist
           products.map((product) => (
             <Link 
-              key={product.id} 
-              href={`/product/${product.id}`}
+              key={product._id} 
+              href={`/product/${product._id}`}
               className="group block"
               onClick={(e) => {
                 // Only navigate if the click wasn't on the wishlist button
