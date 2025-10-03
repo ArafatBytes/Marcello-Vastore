@@ -1,44 +1,153 @@
+"use client";
 import { Navbar } from '@/components/ui/navbar';
 import { Footer } from '@/components/ui/footer';
 import { CategoryLayout } from '@/components/category/CategoryLayout';
+import React from 'react';
+
+
+
+// Map URL paths to API parameters
+const CATEGORY_MAPPING = {
+  // Atelier 1 Collections
+  'atelier-1-shirts': {
+    collection: 'Atlier 1',
+    category: 'Shirts',
+    title: 'Shirts',
+    description: 'Explore our exclusive collection of shirts. Handcrafted with premium materials and attention to detail.'
+  },
+  'atelier-1-pants-shorts': {
+    collection: 'Atlier 1',
+    category: 'Pants & Shorts',
+    title: 'Pants & Shorts',
+    description: 'Discover our premium collection of pants and shorts. Perfect for any occasion.'
+  },
+  'atelier-1-co-ord-capsule': {
+    collection: 'Atlier 1',
+    category: 'Co-Ord Capsule',
+    title: 'Co-Ord Capsule',
+    description: 'Explore our coordinated capsule collection. Perfectly matched sets for a complete look.'
+  },
+  'atelier-1-lustralis-estate': {
+    collection: 'Atlier 1',
+    category: 'Lustralis Estate',
+    title: 'Lustralis Estate',
+    description: 'Exclusive Lustralis Estate collection. Premium quality for the discerning customer.'
+  },
+  
+  // Atelier 2 Collections
+  'atelier-2-dresses': {
+    collection: 'Atlier 2',
+    category: 'Dresses',
+    title: 'Dresses',
+    description: 'Discover our elegant collection of dresses. Perfect for any occasion, from casual to formal.'
+  },
+  'atelier-2-tops': {
+    collection: 'Atlier 2',
+    category: 'Tops',
+    title: 'Tops',
+    description: 'Explore our stylish collection of tops. Versatile pieces to complete any outfit.'
+  },
+  'atelier-2-skirts': {
+    collection: 'Atlier 2',
+    category: 'Skirts',
+    title: 'Skirts',
+    description: 'Find your perfect skirt in our curated collection. From mini to maxi, we have it all.'
+  },
+  'atelier-2-co-ord-capsule': {
+    collection: 'Atlier 2',
+    category: 'Co-Ord Capsule',
+    title: 'Co-Ord Capsule',
+    description: 'Discover our coordinated capsule collection. Perfectly matched sets for a complete look.'
+  },
+  'atelier-2-riviera-vastore': {
+    collection: 'Atlier 2',
+    category: 'Riviera Vastore',
+    title: 'Riviera Vastore',
+    description: 'Exclusive Riviera Vastore collection. Premium quality with a touch of elegance.'
+  }
+};
 
 export default function CategoryPage({ params }) {
   const { category } = params;
+  const [products, setProducts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
   
-  // This would typically come from an API or CMS
-  const categoryData = {
+  // Get category data from mapping or use fallback
+  const categoryData = CATEGORY_MAPPING[category] || {
     title: category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-    description: `Explore our exclusive collection of ${category.replace('-', ' ')}. Handcrafted with premium materials and attention to detail.`,
+    description: `Explore our exclusive collection of ${category.replace(/-/g, ' ')}.`,
+    collection: 'Atlier 1',
+    category: category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
   };
 
-  // Mock product data - replace with actual data fetching
-  const products = Array(8).fill().map((_, i) => ({
-    id: i + 1,
-    name: `${category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} Item ${i + 1}`,
-    price: (Math.random() * 200 + 50).toFixed(2),
-    image: `/placeholder-shirt-${(i % 4) + 1}.jpg`, // Cycle through placeholder images
-    category: category,
-    reference: `REF-${category.toUpperCase().substring(0, 3)}-${i + 1000}`,
-    description: `Premium quality ${category.replace('-', ' ')} item. Made with care and attention to detail.`,
-    details: '100% high-quality materials. Machine washable. Imported.',
-    sizeFit: 'Model is 6\'0" (183 cm) and wears size M.',
-    sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    colors: [
-      { name: 'Navy', hex: '#1E3A8A' },
-      { name: 'White', hex: '#FFFFFF' },
-      { name: 'Gray', hex: '#6B7280' },
-    ],
-  }));
+  // Fetch products when category changes
+  React.useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const { collection, category: cat } = CATEGORY_MAPPING[category] || {
+          collection: 'Atlier 1',
+          category: category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+        };
+        
+        const url = `/api/products?collection=${encodeURIComponent(collection)}&category=${encodeURIComponent(cat)}`;
+        const response = await fetch(url, { signal });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (!signal.aborted) {
+          setProducts(data.products || []);
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error fetching products:', err);
+          setError('Failed to load products. Please try again later.');
+        }
+      } finally {
+        if (!signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchProducts();
+    
+    return () => {
+      controller.abort();
+    };
+  }, [category]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        <CategoryLayout 
-          title={categoryData.title}
-          description={categoryData.description}
-          products={products}
-        />
+        {error ? (
+          <div className="text-center py-12">
+            <p className="text-red-500">{error}</p>
+          </div>
+        ) : loading ? (
+          <CategoryLayout 
+            title={categoryData.title}
+            description={categoryData.description}
+            products={[]}
+            loading={true}
+          />
+        ) : (
+          <CategoryLayout 
+            title={categoryData.title}
+            description={categoryData.description}
+            products={products}
+          />
+        )}
       </main>
     </div>
   );
