@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import SearchModal from './SearchModal';
 import { AnimatePresence } from 'framer-motion';
+import { useCart } from '@/contexts/CartContext';
 
 import {
   NavigationMenu,
@@ -30,6 +31,17 @@ export function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeIcon, setActiveIcon] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [cartBounce, setCartBounce] = useState(false);
+  const { cart } = useCart();
+
+  // Animate cart icon when items are added
+  useEffect(() => {
+    if (cart.totalItems > 0) {
+      setCartBounce(true);
+      const timer = setTimeout(() => setCartBounce(false), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [cart.totalItems]);
 
   // Track login status by checking for JWT in localStorage
   useEffect(() => {
@@ -210,18 +222,18 @@ export function Navbar() {
                 router.push('/cart');
               }}
             >
-              <div className="relative flex flex-col items-center">
+              <div className={`relative flex flex-col items-center cart-icon transition-transform duration-300 ${cartBounce ? 'scale-110' : 'scale-100'}`}>
                 <ShoppingBag className="h-5 w-5" />
-                <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
-                  0
-                </span>
-                
+                {cart.totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-black text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                    {cart.totalItems > 99 ? '99+' : cart.totalItems}
+                  </span>
+                )}
               </div>
             </button>
             {isLoggedIn && (
               <button
                 className="text-gray-700 hover:text-gray-900 transition-colors relative flex flex-col items-center"
-                aria-label="User"
                 ref={iconRefs.user}
                 onClick={() => {
                   if (isSearchOpen) setIsSearchOpen(false);

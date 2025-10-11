@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { Toaster } from "react-hot-toast";
+import { CartProvider } from "@/contexts/CartContext";
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -34,12 +35,14 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased bg-white`}
       >
-        <Toaster position="top-center" />
-        <Navbar />
-        <main className="pt-16 min-h-screen">
-          {children}
-        </main>
-        <Footer />
+        <CartProvider>
+          <Toaster position="top-center" />
+          <Navbar />
+          <main className="pt-16 min-h-screen">
+            {children}
+          </main>
+          <Footer />
+        </CartProvider>
       </body>
     </html>
   );

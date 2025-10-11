@@ -1,8 +1,10 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Truck, Eye, EyeOff, Info, ClipboardList, Lock, Heart, CreditCard } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useCart } from '@/contexts/CartContext';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,6 +12,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { syncCartOnLogin } = useCart();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Check if user came from checkout
+  const fromCheckout = searchParams.get('from') === 'checkout';
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -35,8 +44,20 @@ export default function LoginPage() {
         window.dispatchEvent(new Event('storage'));
         // Also trigger a custom event for immediate navbar update
         window.dispatchEvent(new Event('custom-login'));
+        
+        // Sync cart with database
+        await syncCartOnLogin();
+        
         toast.success('Login successful!');
-        // Optionally redirect, e.g. window.location.href = '/';
+        
+        // Handle redirect based on where user came from
+        if (fromCheckout) {
+          // Redirect back to cart with checkout parameter
+          router.push('/cart?from=checkout');
+        } else {
+          // Normal redirect to home or previous page
+          router.push('/');
+        }
       } else {
         toast.error(data.error || 'Login failed');
       }
@@ -57,7 +78,14 @@ export default function LoginPage() {
             <Link href="#" className="underline text-[15px] text-[#222] font-medium hover:text-black">Check Order Status</Link>
           </div>
           <h2 className="text-[26px] font-bold text-[#222] mb-4">SIGN-IN</h2>
-          <p className="text-[15px] text-[#222] mb-6">Sign-in with your email address and password</p>
+          {fromCheckout ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-[15px] text-blue-800 font-medium">Please sign in to continue with checkout</p>
+              <p className="text-[13px] text-blue-600 mt-1">You&apos;ll be redirected back to your cart after signing in.</p>
+            </div>
+          ) : (
+            <p className="text-[15px] text-[#222] mb-6">Sign-in with your email address and password</p>
+          )}
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="flex flex-col gap-1">
               <label htmlFor="email" className="text-[14px] text-[#222] font-medium">Email Address <span className="text-[#888] font-normal">*</span></label>
@@ -99,7 +127,7 @@ export default function LoginPage() {
             <li className="flex items-start gap-3 text-[15px] text-[#222]"><Heart className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Save items to your Wishlist.</span></li>
             <li className="flex items-start gap-3 text-[15px] text-[#222]"><CreditCard className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Checkout faster.</span></li>
           </ul>
-          <Link href="/register">
+          <Link href={fromCheckout ? "/register?from=checkout" : "/register"}>
           <button className="w-full border-2 border-[#222] text-[#222] rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#fafafa] transition-colors">CREATE ACCOUNT</button>
           </Link>
         </div>

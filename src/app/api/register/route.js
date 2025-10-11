@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import clientPromise from '@/lib/mongodb';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 export async function POST(request) {
   try {
@@ -66,9 +69,30 @@ export async function POST(request) {
     }
 
     // Insert user
-    await usersCollection.insertOne(user);
+    const result = await usersCollection.insertOne(user);
 
-    return NextResponse.json({ success: true });
+    // Generate JWT token for immediate login after registration
+    const token = jwt.sign(
+      { 
+        _id: result.insertedId.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      },
+      JWT_SECRET,
+      { expiresIn: '15d' }
+    );
+
+    return NextResponse.json({ 
+      success: true,
+      token: token,
+      user: {
+        _id: result.insertedId.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
+    });
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -1,10 +1,12 @@
 'use client';
 import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Info, User, Mail, Phone, Lock, MapPin, Home, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'react-hot-toast';
 import { isValidPhoneNumber } from 'libphonenumber-js';
+import { useCart } from '@/contexts/CartContext';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,17 +16,20 @@ export default function RegisterPage() {
   const [billingSame, setBillingSame] = useState(true);
   const [subscribed, setSubscribed] = useState(false);
 
-  // Add missing phone state
-  const [phone, setPhone] = useState('');
+  // Navigation and cart context
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { syncCartOnLogin } = useCart();
 
-  // Add missing password states
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  // Check if user came from checkout
+  const fromCheckout = searchParams.get('from') === 'checkout';
 
   // Form field states
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Field error states
@@ -33,6 +38,7 @@ export default function RegisterPage() {
   const [phoneError, setPhoneError] = useState('');
   const [shippingError, setShippingError] = useState('');
   const [billingError, setBillingError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   // Validators
@@ -155,9 +161,27 @@ export default function RegisterPage() {
         }),
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.token) {
+        // Store the JWT token (similar to login)
+        localStorage.setItem('jwt', data.token);
+        
+        // Trigger auth events
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('custom-login'));
+        
+        // Sync cart with database
+        await syncCartOnLogin();
+        
         toast.success('Registration successful!');
-        setName(''); setEmail(''); setPhone(''); setPassword(''); setConfirmPassword(''); setShippingAddress(''); setBillingAddress(''); setSubscribed(false); setBillingSame(true);
+        
+        // Handle redirect based on where user came from
+        if (fromCheckout) {
+          // Redirect back to cart with checkout parameter
+          router.push('/cart?from=checkout');
+        } else {
+          // Normal redirect to home
+          router.push('/');
+        }
       } else {
         toast.error(data.error || 'Registration failed');
       }
@@ -177,7 +201,14 @@ export default function RegisterPage() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <h2 className="text-[28px] font-bold text-[#222] mb-2 text-center tracking-tight">Create Your Account</h2>
-        <p className="text-[15px] text-[#444] mb-8 text-center">Sign up to Marcello Vastore for a personalized shopping experience.</p>
+        {fromCheckout ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-[15px] text-blue-800 font-medium text-center">Create an account to continue with checkout</p>
+            <p className="text-[13px] text-blue-600 mt-1 text-center">You&apos;ll be redirected back to your cart after registration.</p>
+          </div>
+        ) : (
+          <p className="text-[15px] text-[#444] mb-8 text-center">Sign up to Marcello Vastore for a personalized shopping experience.</p>
+        )}
         <form className="flex flex-col gap-4" onSubmit={handleRegister}>
           {/* Name */}
           <div className="flex flex-col gap-1">

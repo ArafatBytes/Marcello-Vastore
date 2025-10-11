@@ -6,13 +6,28 @@ import { uploadImage, deleteImage } from "@/lib/cloudinary";
 async function parseFormData(request) {
   const formData = await request.formData();
   const body = {};
-  const imageFile = formData.get("image");
-  const additionalImageFiles = formData.getAll("additionalImages");
+  
+  // Handle main image (could be 'image' or 'mainImage')
+  const mainImageFile = formData.get("mainImage") || formData.get("image");
+  
+  // Handle additional images (multiple formats)
+  const additionalImageFiles = [];
+  
+  // Get all additional images with different naming patterns
+  const allAdditionalImages = formData.getAll("additionalImages");
+  additionalImageFiles.push(...allAdditionalImages);
+  
+  // Also check for numbered additional images (additionalImage_0, additionalImage_1, etc.)
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("additionalImage_") && value instanceof File) {
+      additionalImageFiles.push(value);
+    }
+  }
 
   // Convert FormData entries to object
   for (const [key, value] of formData.entries()) {
-    if (key !== "image" && key !== "additionalImages") {
-      if (key === "existingAdditionalImages") {
+    if (key !== "image" && key !== "mainImage" && key !== "additionalImages" && !key.startsWith("additionalImage_")) {
+      if (key === "existingAdditionalImages" || key === "existingMainImage") {
         body[key] = value; // Keep as string to parse later
       } else {
         try {
@@ -26,7 +41,7 @@ async function parseFormData(request) {
     }
   }
 
-  return { ...body, imageFile, additionalImages: additionalImageFiles };
+  return { ...body, imageFile: mainImageFile, additionalImages: additionalImageFiles };
 }
 
 // PATCH: Edit a product (admin only)
@@ -40,11 +55,13 @@ export async function PATCH(request) {
       imageFile,
       reference,
       description,
+      details,
       sizes,
       colors,
-      productDetails,
       sizeFit,
       additionalImages,
+      existingMainImage,
+      existingAdditionalImages,
     } = formData;
 
     if (!_id) {
@@ -71,15 +88,16 @@ export async function PATCH(request) {
     if (price) update.price = parseFloat(price);
     if (reference) update.reference = reference;
     if (description) update.description = description;
+    if (details) update.details = details;
+    if (sizeFit) update.sizeFit = sizeFit;
     update.sizes = Array.isArray(sizes) ? sizes : [];
     update.colors = Array.isArray(colors) ? colors : [];
-    if (productDetails) update.productDetails = productDetails;
-    if (sizeFit) update.sizeFit = sizeFit;
 
-    // Handle new main image upload if provided
+    // Handle main image
     let mainImageUrl = existingProduct.image;
+    
     if (imageFile && imageFile.size > 0) {
-      // Convert file to base64 for Cloudinary
+      // New image file uploaded
       const buffer = await imageFile.arrayBuffer();
       const base64Data = Buffer.from(buffer).toString("base64");
       const dataUri = `data:${imageFile.type};base64,${base64Data}`;
@@ -95,24 +113,31 @@ export async function PATCH(request) {
           await deleteImage(publicId);
         } catch (error) {
           console.error("Error deleting old image from Cloudinary:", error);
-          // Continue even if deletion fails
         }
       }
+    } else if (existingMainImage) {
+      // Keep existing main image
+      update.image = existingMainImage;
     }
 
     // Handle additional images array
-    const imageUrls = [];
+    let additionalImageUrls = [];
 
     // Add existing additional images if provided
-    try {
-      if (formData.existingAdditionalImages) {
-        const existingImages = JSON.parse(formData.existingAdditionalImages);
+    if (existingAdditionalImages) {
+      try {
+        const existingImages = JSON.parse(existingAdditionalImages);
         if (Array.isArray(existingImages)) {
-          imageUrls.push(...existingImages);
+          additionalImageUrls.push(...existingImages);
         }
+      } catch (error) {
+        console.error("Error parsing existing additional images:", error);
+        // Fallback to existing additional images from database
+        additionalImageUrls = existingProduct.additionalImages || [];
       }
-    } catch (error) {
-      console.error("Error parsing existing additional images:", error);
+    } else if (!additionalImages?.length) {
+      // If no new images and no existing images specified, keep current additional images
+      additionalImageUrls = existingProduct.additionalImages || [];
     }
 
     // Process new additional images if provided
@@ -124,7 +149,7 @@ export async function PATCH(request) {
             const imgBase64 = Buffer.from(imgBuffer).toString("base64");
             const imgDataUri = `data:${file.type};base64,${imgBase64}`;
             const imgUrl = await uploadImage(imgDataUri);
-            imageUrls.push(imgUrl);
+            additionalImageUrls.push(imgUrl);
           } catch (error) {
             console.error("Error uploading additional image:", error);
           }
@@ -132,8 +157,8 @@ export async function PATCH(request) {
       }
     }
 
-    // Set the updated images array
-    update.images = imageUrls;
+    // Set the updated additional images array
+    update.additionalImages = additionalImageUrls;
 
     const result = await products.updateOne(
       { _id: new (await import("mongodb")).ObjectId(_id) },
@@ -177,14 +202,27 @@ export async function DELETE(request) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    // Delete image from Cloudinary if it exists
+    // Delete main image from Cloudinary if it exists
     if (product.image) {
       try {
         const publicId = product.image.split("/").pop().split(".")[0];
         await deleteImage(publicId);
       } catch (error) {
-        console.error("Error deleting image from Cloudinary:", error);
+        console.error("Error deleting main image from Cloudinary:", error);
         // Continue with product deletion even if image deletion fails
+      }
+    }
+
+    // Delete additional images from Cloudinary if they exist
+    if (product.additionalImages && Array.isArray(product.additionalImages)) {
+      for (const imageUrl of product.additionalImages) {
+        try {
+          const publicId = imageUrl.split("/").pop().split(".")[0];
+          await deleteImage(publicId);
+        } catch (error) {
+          console.error("Error deleting additional image from Cloudinary:", error);
+          // Continue with deletion even if some images fail to delete
+        }
       }
     }
 
@@ -216,9 +254,9 @@ export async function POST(request) {
       imageFile,
       reference,
       description,
+      details,
       sizes,
       colors,
-      productDetails,
       sizeFit,
       additionalImages,
     } = formData;
@@ -239,7 +277,7 @@ export async function POST(request) {
     const mainImageUrl = await uploadImage(dataUri);
 
     // Upload additional images if provided
-    const imageUrls = [mainImageUrl];
+    const additionalImageUrls = [];
     if (Array.isArray(additionalImages) && additionalImages.length > 0) {
       for (const file of additionalImages) {
         if (file && file instanceof Blob) {
@@ -247,7 +285,7 @@ export async function POST(request) {
           const imgBase64 = Buffer.from(imgBuffer).toString("base64");
           const imgDataUri = `data:${file.type};base64,${imgBase64}`;
           const imgUrl = await uploadImage(imgDataUri);
-          imageUrls.push(imgUrl);
+          additionalImageUrls.push(imgUrl);
         }
       }
     }
@@ -260,13 +298,13 @@ export async function POST(request) {
       name,
       price: parseFloat(price),
       image: mainImageUrl,
-      images: imageUrls,
+      additionalImages: additionalImageUrls,
       reference: reference || "",
       description: description || "",
+      details: details || "",
+      sizeFit: sizeFit || "",
       sizes: Array.isArray(sizes) ? sizes : [],
       colors: Array.isArray(colors) ? colors : [],
-      productDetails: productDetails || "",
-      sizeFit: sizeFit || "",
       collection: collectionName,
       category,
       createdAt: new Date(),

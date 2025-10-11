@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from 'react-hot-toast';
+import { useCart } from '@/contexts/CartContext';
 
 const TABS = [
   { key: "order", label: "ORDER HISTORY" },
@@ -289,6 +290,7 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const { handleLogout } = useCart();
 
   useEffect(() => {
     // Check login (JWT in localStorage or window.jwt)
@@ -310,7 +312,12 @@ export default function AccountPage() {
 
   function handleSignOut() {
     localStorage.removeItem("jwt");
+    sessionStorage.removeItem("jwt");
     window.jwt = null;
+    
+    // Handle cart logout
+    handleLogout();
+    
     window.dispatchEvent(new Event("storage"));
     router.push("/login");
   }
