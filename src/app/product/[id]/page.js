@@ -1,6 +1,10 @@
 import ProductDetails from "@/components/ui/product-details";
 import { notFound } from "next/navigation";
 
+// Force dynamic rendering to avoid build-time fetch errors
+export const dynamic = "force-dynamic";
+export const revalidate = 60; // Revalidate every 60 seconds
+
 // Fetch product data from the database
 async function getProduct(id) {
   try {
@@ -41,36 +45,50 @@ export default async function ProductPage({ params }) {
     name: product.name,
     price: product.price,
     description: product.description || "No description available.",
-    details: product.details || product.productDetails || "Product details not specified.",
+    details:
+      product.details ||
+      product.productDetails ||
+      "Product details not specified.",
     sizeFit: product.sizeFit || "Standard fit.",
     // Handle main image and additional images properly
     images: (() => {
       let allImages = [];
 
       // Add main image first if it exists
-      if (product.image && typeof product.image === 'string' && product.image.trim()) {
+      if (
+        product.image &&
+        typeof product.image === "string" &&
+        product.image.trim()
+      ) {
         allImages.push(product.image.trim());
       }
 
       // Add additional images from the new field structure
       if (Array.isArray(product.additionalImages)) {
         const validAdditionalImages = product.additionalImages.filter(
-          img => img && typeof img === 'string' && img.trim() !== ''
+          (img) => img && typeof img === "string" && img.trim() !== ""
         );
-        allImages.push(...validAdditionalImages.map(img => img.trim()));
+        allImages.push(...validAdditionalImages.map((img) => img.trim()));
       }
 
       // Fallback: check old images field for backward compatibility
       if (Array.isArray(product.images)) {
         const validOldImages = product.images.filter(
-          img => img && typeof img === 'string' && img.trim() !== '' && !allImages.includes(img.trim())
+          (img) =>
+            img &&
+            typeof img === "string" &&
+            img.trim() !== "" &&
+            !allImages.includes(img.trim())
         );
-        allImages.push(...validOldImages.map(img => img.trim()));
+        allImages.push(...validOldImages.map((img) => img.trim()));
       }
 
       // Remove duplicates and ensure all URLs are valid
-      allImages = [...new Set(allImages)].filter(img => 
-        img.startsWith('http') || img.startsWith('/') || img.startsWith('data:')
+      allImages = [...new Set(allImages)].filter(
+        (img) =>
+          img.startsWith("http") ||
+          img.startsWith("/") ||
+          img.startsWith("data:")
       );
 
       // If no images at all, use placeholder
@@ -80,7 +98,7 @@ export default async function ProductPage({ params }) {
     mainImage: product.image,
     sizes: (() => {
       const sizes = product.sizes || ["S", "M", "L", "XL"];
-      const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+      const sizeOrder = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
       return sizes.sort((a, b) => {
         const indexA = sizeOrder.indexOf(a);
         const indexB = sizeOrder.indexOf(b);
@@ -102,30 +120,6 @@ export default async function ProductPage({ params }) {
   return <ProductDetails product={formattedProduct} />;
 }
 
-// Generate static paths for all products at build time
-export async function generateStaticParams() {
-  try {
-    // Fetch all product IDs from the API
-    const response = await fetch(
-      `${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-      }/api/products`
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch products");
-    }
-
-    const data = await response.json();
-
-    // Return an array of params for each product
-    return data.products.map((product) => ({
-      id: product._id.toString(),
-    }));
-  } catch (error) {
-    console.error("Error generating static params:", error);
-    return [];
-  }
-}
-
-export const dynamicParams = true; // Enable fallback for non-generated routes
+// Remove generateStaticParams to avoid build-time fetch errors
+// Products will be generated on-demand at runtime
+export const dynamicParams = true; // Enable fallback for all routes

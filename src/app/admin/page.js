@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
+
 const ADMIN_TABS = [
   { key: "products", label: "Product Updates" },
   { key: "orders", label: "User Shopping History" },
@@ -215,7 +218,7 @@ function ProductManager({ collection, category }) {
   const [showModal, setShowModal] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
   const [error, setError] = React.useState("");
-  
+
   // Enhanced form state with all necessary fields
   const [form, setForm] = React.useState({
     name: "",
@@ -227,13 +230,13 @@ function ProductManager({ collection, category }) {
     sizes: [],
     colors: [],
     mainImage: null,
-    additionalImages: []
+    additionalImages: [],
   });
-  
+
   // Separate state for file handling
   const [imageFiles, setImageFiles] = React.useState({
     main: null,
-    additional: []
+    additional: [],
   });
 
   // Store the AbortController instance
@@ -307,18 +310,18 @@ function ProductManager({ collection, category }) {
       sizes: [],
       colors: [],
       mainImage: null,
-      additionalImages: []
+      additionalImages: [],
     });
     setImageFiles({
       main: null,
-      additional: []
+      additional: [],
     });
   }
 
   // Handle text input changes
   function handleInputChange(e) {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   // Handle main image upload
@@ -327,8 +330,8 @@ function ProductManager({ collection, category }) {
     if (file) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        setForm(prev => ({ ...prev, mainImage: ev.target.result }));
-        setImageFiles(prev => ({ ...prev, main: file }));
+        setForm((prev) => ({ ...prev, mainImage: ev.target.result }));
+        setImageFiles((prev) => ({ ...prev, main: file }));
       };
       reader.readAsDataURL(file);
     }
@@ -337,28 +340,28 @@ function ProductManager({ collection, category }) {
   // Handle additional images upload
   function handleAdditionalImagesChange(e) {
     const files = Array.from(e.target.files);
-    
+
     if (files.length === 0) return;
-    
+
     const newPreviewImages = [];
     const newFiles = [];
 
-    files.forEach(file => {
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         newPreviewImages.push(ev.target.result);
         newFiles.push(file);
-        
+
         if (newPreviewImages.length === files.length) {
           // Add new preview images to the form (these are base64 for preview only)
-          setForm(prev => ({ 
-            ...prev, 
-            additionalImages: [...prev.additionalImages, ...newPreviewImages] 
+          setForm((prev) => ({
+            ...prev,
+            additionalImages: [...prev.additionalImages, ...newPreviewImages],
           }));
           // Add new files to imageFiles for upload
-          setImageFiles(prev => ({ 
-            ...prev, 
-            additional: [...prev.additional, ...newFiles] 
+          setImageFiles((prev) => ({
+            ...prev,
+            additional: [...prev.additional, ...newFiles],
           }));
         }
       };
@@ -369,52 +372,52 @@ function ProductManager({ collection, category }) {
   // Remove additional image
   function removeAdditionalImage(index) {
     const imageToRemove = form.additionalImages[index];
-    
+
     // Check if this is a new image (base64) or existing image (URL)
-    const isNewImage = imageToRemove && imageToRemove.startsWith('data:');
-    
+    const isNewImage = imageToRemove && imageToRemove.startsWith("data:");
+
     if (isNewImage) {
       // For new images, we need to find and remove the corresponding file
       // Count how many existing images come before this index
       let existingImagesCount = 0;
       for (let i = 0; i < index; i++) {
-        if (!form.additionalImages[i].startsWith('data:')) {
+        if (!form.additionalImages[i].startsWith("data:")) {
           existingImagesCount++;
         }
       }
-      
+
       // The file index is the current index minus the existing images count
       const fileIndex = index - existingImagesCount;
-      
-      setImageFiles(prev => ({
+
+      setImageFiles((prev) => ({
         ...prev,
-        additional: prev.additional.filter((_, i) => i !== fileIndex)
+        additional: prev.additional.filter((_, i) => i !== fileIndex),
       }));
     }
-    
+
     // Remove the image from the preview array
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      additionalImages: prev.additionalImages.filter((_, i) => i !== index)
+      additionalImages: prev.additionalImages.filter((_, i) => i !== index),
     }));
   }
 
   // Handle sizes management with checkboxes
   function handleSizeToggle(size) {
-    setForm(prev => {
+    setForm((prev) => {
       const newSizes = prev.sizes.includes(size)
-        ? prev.sizes.filter(s => s !== size)
+        ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size];
-      
+
       // Sort sizes in proper order
-      const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+      const sizeOrder = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
       const sortedSizes = newSizes.sort((a, b) => {
         return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
       });
-      
+
       return {
         ...prev,
-        sizes: sortedSizes
+        sizes: sortedSizes,
       };
     });
   }
@@ -428,11 +431,13 @@ function ProductManager({ collection, category }) {
   // Convert HSL to HEX
   function hslToHex(h, s, l) {
     l /= 100;
-    const a = s * Math.min(l, 1 - l) / 100;
-    const f = n => {
+    const a = (s * Math.min(l, 1 - l)) / 100;
+    const f = (n) => {
       const k = (n + h / 30) % 12;
       const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, '0');
+      return Math.round(255 * color)
+        .toString(16)
+        .padStart(2, "0");
     };
     return `#${f(0)}${f(8)}${f(4)}`;
   }
@@ -440,26 +445,27 @@ function ProductManager({ collection, category }) {
   // Get color name based on HSL values
   function getColorName(h, s, l) {
     if (s < 10) {
-      if (l < 20) return 'Black';
-      if (l > 90) return 'White';
-      if (l < 40) return 'Dark Gray';
-      if (l > 70) return 'Light Gray';
-      return 'Gray';
+      if (l < 20) return "Black";
+      if (l > 90) return "White";
+      if (l < 40) return "Dark Gray";
+      if (l > 70) return "Light Gray";
+      return "Gray";
     }
-    
+
     const hueNames = [
-      { min: 0, max: 15, name: 'Red' },
-      { min: 15, max: 45, name: 'Orange' },
-      { min: 45, max: 75, name: 'Yellow' },
-      { min: 75, max: 150, name: 'Green' },
-      { min: 150, max: 210, name: 'Cyan' },
-      { min: 210, max: 270, name: 'Blue' },
-      { min: 270, max: 330, name: 'Purple' },
-      { min: 330, max: 360, name: 'Red' }
+      { min: 0, max: 15, name: "Red" },
+      { min: 15, max: 45, name: "Orange" },
+      { min: 45, max: 75, name: "Yellow" },
+      { min: 75, max: 150, name: "Green" },
+      { min: 150, max: 210, name: "Cyan" },
+      { min: 210, max: 270, name: "Blue" },
+      { min: 270, max: 330, name: "Purple" },
+      { min: 330, max: 360, name: "Red" },
     ];
-    
-    const hueName = hueNames.find(range => h >= range.min && h < range.max)?.name || 'Red';
-    
+
+    const hueName =
+      hueNames.find((range) => h >= range.min && h < range.max)?.name || "Red";
+
     if (l < 30) return `Dark ${hueName}`;
     if (l > 80) return `Light ${hueName}`;
     if (s < 50) return `Pale ${hueName}`;
@@ -469,42 +475,48 @@ function ProductManager({ collection, category }) {
   // Handle color selection from picker
   function handleColorPickerSelect() {
     const hex = hslToHex(selectedHue, selectedSaturation, selectedLightness);
-    const name = getColorName(selectedHue, selectedSaturation, selectedLightness);
-    
+    const name = getColorName(
+      selectedHue,
+      selectedSaturation,
+      selectedLightness
+    );
+
     // Check if color already exists
-    const colorExists = form.colors.some(color => color.hex.toLowerCase() === hex.toLowerCase());
-    
+    const colorExists = form.colors.some(
+      (color) => color.hex.toLowerCase() === hex.toLowerCase()
+    );
+
     if (!colorExists) {
-      setForm(prev => ({ 
-        ...prev, 
-        colors: [...prev.colors, { name, hex }] 
+      setForm((prev) => ({
+        ...prev,
+        colors: [...prev.colors, { name, hex }],
       }));
     }
-    
+
     setShowColorPicker(false);
   }
 
   function removeColor(index) {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      colors: prev.colors.filter((_, i) => i !== index)
+      colors: prev.colors.filter((_, i) => i !== index),
     }));
   }
 
   // Quick color palette for common colors
   const quickColors = [
-    { name: 'Black', hex: '#000000' },
-    { name: 'White', hex: '#FFFFFF' },
-    { name: 'Red', hex: '#FF0000' },
-    { name: 'Blue', hex: '#0000FF' },
-    { name: 'Green', hex: '#008000' },
-    { name: 'Yellow', hex: '#FFFF00' },
-    { name: 'Purple', hex: '#800080' },
-    { name: 'Orange', hex: '#FFA500' },
-    { name: 'Pink', hex: '#FFC0CB' },
-    { name: 'Brown', hex: '#8B4513' },
-    { name: 'Gray', hex: '#808080' },
-    { name: 'Navy', hex: '#000080' }
+    { name: "Black", hex: "#000000" },
+    { name: "White", hex: "#FFFFFF" },
+    { name: "Red", hex: "#FF0000" },
+    { name: "Blue", hex: "#0000FF" },
+    { name: "Green", hex: "#008000" },
+    { name: "Yellow", hex: "#FFFF00" },
+    { name: "Purple", hex: "#800080" },
+    { name: "Orange", hex: "#FFA500" },
+    { name: "Pink", hex: "#FFC0CB" },
+    { name: "Brown", hex: "#8B4513" },
+    { name: "Gray", hex: "#808080" },
+    { name: "Navy", hex: "#000080" },
   ];
 
   function openAddModal() {
@@ -526,11 +538,11 @@ function ProductManager({ collection, category }) {
       sizes: product.sizes || [],
       colors: product.colors || [],
       mainImage: product.image || null,
-      additionalImages: product.additionalImages || [] // These are existing Cloudinary URLs
+      additionalImages: product.additionalImages || [], // These are existing Cloudinary URLs
     });
     setImageFiles({
       main: null,
-      additional: [] // This will hold only new files to upload
+      additional: [], // This will hold only new files to upload
     });
     setShowModal(true);
     setError("");
@@ -547,73 +559,82 @@ function ProductManager({ collection, category }) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     try {
       const formData = new FormData();
-      
+
       // Add text fields
-      formData.append('name', form.name);
-      formData.append('price', form.price);
-      formData.append('reference', form.reference);
-      formData.append('description', form.description);
-      formData.append('details', form.details);
-      formData.append('sizeFit', form.sizeFit);
-      formData.append('collection', collection);
-      formData.append('category', category);
-      formData.append('sizes', JSON.stringify(form.sizes));
-      formData.append('colors', JSON.stringify(form.colors));
-      
+      formData.append("name", form.name);
+      formData.append("price", form.price);
+      formData.append("reference", form.reference);
+      formData.append("description", form.description);
+      formData.append("details", form.details);
+      formData.append("sizeFit", form.sizeFit);
+      formData.append("collection", collection);
+      formData.append("category", category);
+      formData.append("sizes", JSON.stringify(form.sizes));
+      formData.append("colors", JSON.stringify(form.colors));
+
       // Handle main image
       if (imageFiles.main) {
-        formData.append('mainImage', imageFiles.main);
+        formData.append("mainImage", imageFiles.main);
       } else if (editing && form.mainImage) {
-        formData.append('existingMainImage', form.mainImage);
+        formData.append("existingMainImage", form.mainImage);
       } else if (!editing) {
-        throw new Error('Main image is required for new products');
+        throw new Error("Main image is required for new products");
       }
-      
+
       // Handle additional images - separate existing from new
       if (editing) {
         // Filter existing images (Cloudinary URLs) from new images (base64)
-        const existingImages = form.additionalImages.filter(img => 
-          typeof img === 'string' && !img.startsWith('data:')
+        const existingImages = form.additionalImages.filter(
+          (img) => typeof img === "string" && !img.startsWith("data:")
         );
-        formData.append('existingAdditionalImages', JSON.stringify(existingImages));
+        formData.append(
+          "existingAdditionalImages",
+          JSON.stringify(existingImages)
+        );
       }
-      
+
       // Add new additional image files
       imageFiles.additional.forEach((file, index) => {
         formData.append(`additionalImage_${index}`, file);
       });
-      
-      let url = '/api/products';
-      let method = 'POST';
-      
+
+      let url = "/api/products";
+      let method = "POST";
+
       if (editing) {
-        formData.append('_id', editing._id);
-        method = 'PATCH';
+        formData.append("_id", editing._id);
+        method = "PATCH";
       }
-      
+
       const response = await fetch(url, {
         method,
         body: formData,
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
-        throw new Error(data.error || (editing ? 'Failed to update product' : 'Failed to create product'));
+        throw new Error(
+          data.error ||
+            (editing ? "Failed to update product" : "Failed to create product")
+        );
       }
-      
+
       // Refresh products list
-      const productsRes = await fetch(`/api/products?collection=${encodeURIComponent(collection)}&category=${encodeURIComponent(category)}`);
+      const productsRes = await fetch(
+        `/api/products?collection=${encodeURIComponent(
+          collection
+        )}&category=${encodeURIComponent(category)}`
+      );
       const productsData = await productsRes.json();
       setProducts(productsData.products || []);
       closeModal();
-      
     } catch (err) {
-      setError(err.message || 'An error occurred');
-      console.error('Error submitting form:', err);
+      setError(err.message || "An error occurred");
+      console.error("Error submitting form:", err);
     } finally {
       setLoading(false);
     }
@@ -635,9 +656,13 @@ function ProductManager({ collection, category }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete");
       setShowDeleteModal(null);
-      
+
       // Refresh products list
-      const productsRes = await fetch(`/api/products?collection=${encodeURIComponent(collection)}&category=${encodeURIComponent(category)}`);
+      const productsRes = await fetch(
+        `/api/products?collection=${encodeURIComponent(
+          collection
+        )}&category=${encodeURIComponent(category)}`
+      );
       const productsData = await productsRes.json();
       setProducts(productsData.products || []);
     } catch (err) {
@@ -831,15 +856,20 @@ function ProductManager({ collection, category }) {
                 <div className="font-medium col-span-1 md:col-span-3">
                   <span className="block mb-3">Available Sizes</span>
                   <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
-                    {['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'].map((size) => (
-                      <label key={size} className="flex items-center space-x-2 cursor-pointer">
+                    {["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((size) => (
+                      <label
+                        key={size}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
                         <input
                           type="checkbox"
                           checked={form.sizes.includes(size)}
                           onChange={() => handleSizeToggle(size)}
                           className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                         />
-                        <span className="text-sm font-medium text-gray-700">{size}</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          {size}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -847,7 +877,7 @@ function ProductManager({ collection, category }) {
                     <div className="mt-3">
                       <span className="text-sm text-gray-600">Selected: </span>
                       <span className="text-sm font-medium text-blue-600">
-                        {form.sizes.join(', ')}
+                        {form.sizes.join(", ")}
                       </span>
                     </div>
                   )}
@@ -856,23 +886,27 @@ function ProductManager({ collection, category }) {
                 {/* Colors */}
                 <div className="font-medium col-span-1 md:col-span-3">
                   <span className="block mb-3">Available Colors</span>
-                  
+
                   {/* Color Selection Options */}
                   <div className="mb-4 space-y-4">
                     {/* Quick Colors */}
                     <div>
-                      <span className="text-sm text-gray-600 mb-2 block">Quick colors:</span>
+                      <span className="text-sm text-gray-600 mb-2 block">
+                        Quick colors:
+                      </span>
                       <div className="flex flex-wrap gap-2">
                         {quickColors.map((color) => (
                           <button
                             key={color.hex}
                             type="button"
                             onClick={() => {
-                              const colorExists = form.colors.some(c => c.hex === color.hex);
+                              const colorExists = form.colors.some(
+                                (c) => c.hex === color.hex
+                              );
                               if (!colorExists) {
-                                setForm(prev => ({ 
-                                  ...prev, 
-                                  colors: [...prev.colors, color] 
+                                setForm((prev) => ({
+                                  ...prev,
+                                  colors: [...prev.colors, color],
                                 }));
                               }
                             }}
@@ -880,7 +914,7 @@ function ProductManager({ collection, category }) {
                             style={{ backgroundColor: color.hex }}
                             title={color.name}
                           >
-                            {form.colors.some(c => c.hex === color.hex) && (
+                            {form.colors.some((c) => c.hex === color.hex) && (
                               <span className="flex items-center justify-center h-full text-white text-xs font-bold drop-shadow-lg">
                                 ✓
                               </span>
@@ -915,12 +949,14 @@ function ProductManager({ collection, category }) {
                               min="0"
                               max="360"
                               value={selectedHue}
-                              onChange={(e) => setSelectedHue(parseInt(e.target.value))}
+                              onChange={(e) =>
+                                setSelectedHue(parseInt(e.target.value))
+                              }
                               className="w-full h-6 rounded-lg appearance-none cursor-pointer"
                               style={{
                                 background: `linear-gradient(to right, 
                                   hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), 
-                                  hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))`
+                                  hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%))`,
                               }}
                             />
                           </div>
@@ -935,12 +971,14 @@ function ProductManager({ collection, category }) {
                               min="0"
                               max="100"
                               value={selectedSaturation}
-                              onChange={(e) => setSelectedSaturation(parseInt(e.target.value))}
+                              onChange={(e) =>
+                                setSelectedSaturation(parseInt(e.target.value))
+                              }
                               className="w-full h-6 rounded-lg appearance-none cursor-pointer"
                               style={{
                                 background: `linear-gradient(to right, 
                                   hsl(${selectedHue}, 0%, ${selectedLightness}%), 
-                                  hsl(${selectedHue}, 100%, ${selectedLightness}%))`
+                                  hsl(${selectedHue}, 100%, ${selectedLightness}%))`,
                               }}
                             />
                           </div>
@@ -955,13 +993,15 @@ function ProductManager({ collection, category }) {
                               min="0"
                               max="100"
                               value={selectedLightness}
-                              onChange={(e) => setSelectedLightness(parseInt(e.target.value))}
+                              onChange={(e) =>
+                                setSelectedLightness(parseInt(e.target.value))
+                              }
                               className="w-full h-6 rounded-lg appearance-none cursor-pointer"
                               style={{
                                 background: `linear-gradient(to right, 
                                   hsl(${selectedHue}, ${selectedSaturation}%, 0%), 
                                   hsl(${selectedHue}, ${selectedSaturation}%, 50%), 
-                                  hsl(${selectedHue}, ${selectedSaturation}%, 100%))`
+                                  hsl(${selectedHue}, ${selectedSaturation}%, 100%))`,
                               }}
                             />
                           </div>
@@ -970,14 +1010,28 @@ function ProductManager({ collection, category }) {
                           <div className="flex items-center gap-4">
                             <div
                               className="w-16 h-16 rounded-lg border-2 border-gray-300 shadow-inner"
-                              style={{ backgroundColor: hslToHex(selectedHue, selectedSaturation, selectedLightness) }}
+                              style={{
+                                backgroundColor: hslToHex(
+                                  selectedHue,
+                                  selectedSaturation,
+                                  selectedLightness
+                                ),
+                              }}
                             ></div>
                             <div>
                               <div className="text-sm font-medium">
-                                {getColorName(selectedHue, selectedSaturation, selectedLightness)}
+                                {getColorName(
+                                  selectedHue,
+                                  selectedSaturation,
+                                  selectedLightness
+                                )}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {hslToHex(selectedHue, selectedSaturation, selectedLightness)}
+                                {hslToHex(
+                                  selectedHue,
+                                  selectedSaturation,
+                                  selectedLightness
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1007,15 +1061,22 @@ function ProductManager({ collection, category }) {
                   {/* Selected Colors Display */}
                   {form.colors.length > 0 && (
                     <div>
-                      <span className="text-sm text-gray-600 mb-2 block">Selected colors:</span>
+                      <span className="text-sm text-gray-600 mb-2 block">
+                        Selected colors:
+                      </span>
                       <div className="flex flex-wrap gap-2">
                         {form.colors.map((color, index) => (
-                          <div key={index} className="flex items-center bg-white rounded-lg px-3 py-2 border shadow-sm">
+                          <div
+                            key={index}
+                            className="flex items-center bg-white rounded-lg px-3 py-2 border shadow-sm"
+                          >
                             <div
                               className="w-4 h-4 rounded-full border mr-2"
                               style={{ backgroundColor: color.hex }}
                             ></div>
-                            <span className="text-sm font-medium">{color.name}</span>
+                            <span className="text-sm font-medium">
+                              {color.name}
+                            </span>
                             <button
                               type="button"
                               onClick={() => removeColor(index)}

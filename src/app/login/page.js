@@ -1,68 +1,81 @@
-'use client';
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Truck, Eye, EyeOff, Info, ClipboardList, Lock, Heart, CreditCard } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { useCart } from '@/contexts/CartContext';
+"use client";
+import React, { useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Truck,
+  Eye,
+  EyeOff,
+  Info,
+  ClipboardList,
+  Lock,
+  Heart,
+  CreditCard,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import { useCart } from "@/contexts/CartContext";
 
-export default function LoginPage() {
+// Force dynamic rendering for this page
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { syncCartOnLogin } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // Check if user came from checkout
-  const fromCheckout = searchParams.get('from') === 'checkout';
+  const fromCheckout = searchParams?.get("from") === "checkout";
 
   async function handleLogin(e) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (res.ok && data.token) {
         if (remember) {
           // Store JWT for 15 days
-          localStorage.setItem('jwt', data.token);
-          sessionStorage.removeItem('jwt');
+          localStorage.setItem("jwt", data.token);
+          sessionStorage.removeItem("jwt");
         } else {
           // Store JWT for session only
-          sessionStorage.setItem('jwt', data.token);
-          localStorage.removeItem('jwt');
+          sessionStorage.setItem("jwt", data.token);
+          localStorage.removeItem("jwt");
         }
         // Force navbar to update by triggering a storage event
-        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event("storage"));
         // Also trigger a custom event for immediate navbar update
-        window.dispatchEvent(new Event('custom-login'));
-        
+        window.dispatchEvent(new Event("custom-login"));
+
         // Sync cart with database
         await syncCartOnLogin();
-        
-        toast.success('Login successful!');
-        
+
+        toast.success("Login successful!");
+
         // Handle redirect based on where user came from
         if (fromCheckout) {
           // Redirect back to cart with checkout parameter
-          router.push('/cart?from=checkout');
+          router.push("/cart?from=checkout");
         } else {
           // Normal redirect to home or previous page
-          router.push('/');
+          router.push("/");
         }
       } else {
-        toast.error(data.error || 'Login failed');
+        toast.error(data.error || "Login failed");
       }
     } catch (err) {
-      toast.error('Something went wrong.');
+      toast.error("Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }
@@ -75,42 +88,109 @@ export default function LoginPage() {
         <div className="flex-1 p-10 flex flex-col">
           <div className="flex items-center gap-2 mb-8">
             <Truck className="w-5 h-5 text-[#222]" />
-            <Link href="#" className="underline text-[15px] text-[#222] font-medium hover:text-black">Check Order Status</Link>
+            <Link
+              href="#"
+              className="underline text-[15px] text-[#222] font-medium hover:text-black"
+            >
+              Check Order Status
+            </Link>
           </div>
           <h2 className="text-[26px] font-bold text-[#222] mb-4">SIGN-IN</h2>
           {fromCheckout ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-[15px] text-blue-800 font-medium">Please sign in to continue with checkout</p>
-              <p className="text-[13px] text-blue-600 mt-1">You&apos;ll be redirected back to your cart after signing in.</p>
+              <p className="text-[15px] text-blue-800 font-medium">
+                Please sign in to continue with checkout
+              </p>
+              <p className="text-[13px] text-blue-600 mt-1">
+                You&apos;ll be redirected back to your cart after signing in.
+              </p>
             </div>
           ) : (
-            <p className="text-[15px] text-[#222] mb-6">Sign-in with your email address and password</p>
+            <p className="text-[15px] text-[#222] mb-6">
+              Sign-in with your email address and password
+            </p>
           )}
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="flex flex-col gap-1">
-              <label htmlFor="email" className="text-[14px] text-[#222] font-medium">Email Address <span className="text-[#888] font-normal">*</span></label>
-              <input id="email" type="email" required placeholder="Email Address *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222]" value={email} onChange={e => setEmail(e.target.value)} />
+              <label
+                htmlFor="email"
+                className="text-[14px] text-[#222] font-medium"
+              >
+                Email Address <span className="text-[#888] font-normal">*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                placeholder="Email Address *"
+                className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222]"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="flex flex-col gap-1 relative">
-              <label htmlFor="password" className="text-[14px] text-[#222] font-medium">Password <span className="text-[#888] font-normal">*</span></label>
-              <input id="password" type={showPassword ? 'text' : 'password'} required placeholder="Password *" className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] pr-10" value={password} onChange={e => setPassword(e.target.value)} />
-              <button type="button" className="absolute right-3 top-9 text-[#888]" tabIndex={-1} onClick={() => setShowPassword(v => !v)} aria-label="Toggle password visibility">
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              <label
+                htmlFor="password"
+                className="text-[14px] text-[#222] font-medium"
+              >
+                Password <span className="text-[#888] font-normal">*</span>
+              </label>
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Password *"
+                className="border border-[#ede9df] rounded px-3 py-2 text-[15px] bg-[#fafafa] focus:outline-none focus:border-[#222] pr-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-9 text-[#888]"
+                tabIndex={-1}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
             <div className="flex items-center mt-2 mb-2">
-              <input type="checkbox" id="remember" className="accent-[#222] w-4 h-4 mr-2" checked={remember} onChange={e => setRemember(e.target.checked)} />
-              <label htmlFor="remember" className="text-[14px] text-[#222] mr-2">Remember Me</label>
+              <input
+                type="checkbox"
+                id="remember"
+                className="accent-[#222] w-4 h-4 mr-2"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              <label
+                htmlFor="remember"
+                className="text-[14px] text-[#222] mr-2"
+              >
+                Remember Me
+              </label>
               <span className="relative group ml-1">
                 <Info className="w-4 h-4 text-[#888] cursor-pointer" />
                 <span className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-[#222] text-white text-xs rounded px-3 py-2 shadow-lg z-50 opacity-0 group-hover:opacity-100 group-focus:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-normal">
-                  If checked, you’ll stay signed in on this device. Do not use on public computers.
+                  If checked, you’ll stay signed in on this device. Do not use
+                  on public computers.
                 </span>
               </span>
               <div className="flex-1" />
-              <Link href="#" className="text-[14px] text-[#222] underline ml-2">Forgot Password?</Link>
+              <Link href="#" className="text-[14px] text-[#222] underline ml-2">
+                Forgot Password?
+              </Link>
             </div>
-            <button type="submit" className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors" disabled={isSubmitting}>{isSubmitting ? 'Signing In...' : 'SIGN-IN'}</button>
+            <button
+              type="submit"
+              className="w-full mt-2 bg-[#222] text-white rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#444] transition-colors"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Signing In..." : "SIGN-IN"}
+            </button>
           </form>
         </div>
         {/* Custom vertical divider */}
@@ -118,20 +198,67 @@ export default function LoginPage() {
           <div className="mx-0 my-10 w-px bg-[#ede9df] h-[calc(100%-80px)]" />
         </div>
         {/* Create Account Section */}
-        <div className="flex-1 p-10 flex flex-col" style={{marginTop: '56px'}}>
-          <h2 className="text-[26px] font-bold text-[#222] mb-4">CREATE AN ACCOUNT</h2>
-          <p className="text-[15px] text-[#222] mb-6">Register at Marcello Vastore to enjoy the benefits of your account:</p>
+        <div
+          className="flex-1 p-10 flex flex-col"
+          style={{ marginTop: "56px" }}
+        >
+          <h2 className="text-[26px] font-bold text-[#222] mb-4">
+            CREATE AN ACCOUNT
+          </h2>
+          <p className="text-[15px] text-[#222] mb-6">
+            Register at Marcello Vastore to enjoy the benefits of your account:
+          </p>
           <ul className="flex flex-col gap-4 mb-8">
-            <li className="flex items-start gap-3 text-[15px] text-[#222]"><ClipboardList className="w-5 h-5 mt-0.5 text-[#222]" /><span><span className="font-bold">Discover latest news and exclusive offers.</span></span></li>
-            <li className="flex items-start gap-3 text-[15px] text-[#222]"><Lock className="w-5 h-5 mt-0.5 text-[#222]" /><span><span className="font-bold">View your order history and saved addresses.</span></span></li>
-            <li className="flex items-start gap-3 text-[15px] text-[#222]"><Heart className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Save items to your Wishlist.</span></li>
-            <li className="flex items-start gap-3 text-[15px] text-[#222]"><CreditCard className="w-5 h-5 mt-0.5 text-[#222]" /><span className="font-bold">Checkout faster.</span></li>
+            <li className="flex items-start gap-3 text-[15px] text-[#222]">
+              <ClipboardList className="w-5 h-5 mt-0.5 text-[#222]" />
+              <span>
+                <span className="font-bold">
+                  Discover latest news and exclusive offers.
+                </span>
+              </span>
+            </li>
+            <li className="flex items-start gap-3 text-[15px] text-[#222]">
+              <Lock className="w-5 h-5 mt-0.5 text-[#222]" />
+              <span>
+                <span className="font-bold">
+                  View your order history and saved addresses.
+                </span>
+              </span>
+            </li>
+            <li className="flex items-start gap-3 text-[15px] text-[#222]">
+              <Heart className="w-5 h-5 mt-0.5 text-[#222]" />
+              <span className="font-bold">Save items to your Wishlist.</span>
+            </li>
+            <li className="flex items-start gap-3 text-[15px] text-[#222]">
+              <CreditCard className="w-5 h-5 mt-0.5 text-[#222]" />
+              <span className="font-bold">Checkout faster.</span>
+            </li>
           </ul>
           <Link href={fromCheckout ? "/register?from=checkout" : "/register"}>
-          <button className="w-full border-2 border-[#222] text-[#222] rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#fafafa] transition-colors">CREATE ACCOUNT</button>
+            <button className="w-full border-2 border-[#222] text-[#222] rounded py-3 font-bold text-[16px] tracking-wider shadow-sm hover:bg-[#fafafa] transition-colors">
+              CREATE ACCOUNT
+            </button>
           </Link>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="bg-[#fafafa] min-h-screen flex items-center justify-center px-4 py-4">
+          <div className="bg-white max-w-4xl w-full rounded-md shadow-sm border border-[#ede9df] flex flex-row px-4">
+            <div className="flex-1 p-10 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
