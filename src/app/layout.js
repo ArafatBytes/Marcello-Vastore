@@ -1,15 +1,17 @@
 import localFont from "next/font/local";
-import { Playfair_Display } from 'next/font/google';
+import { Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { Toaster } from "react-hot-toast";
 import { CartProvider } from "@/contexts/CartContext";
+import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { RecentlyViewedProvider } from "@/contexts/RecentlyViewedContext";
 
 const playfair = Playfair_Display({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-playfair',
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-playfair",
 });
 
 const geistSans = localFont({
@@ -36,12 +38,14 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased bg-white`}
       >
         <CartProvider>
-          <Toaster position="top-center" />
-          <Navbar />
-          <main className="pt-16 min-h-screen">
-            {children}
-          </main>
-          <Footer />
+          <FavoritesProvider>
+            <RecentlyViewedProvider>
+              <Toaster position="top-center" />
+              <Navbar />
+              <main className="pt-16 min-h-screen">{children}</main>
+              <Footer />
+            </RecentlyViewedProvider>
+          </FavoritesProvider>
         </CartProvider>
       </body>
     </html>

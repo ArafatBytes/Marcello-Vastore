@@ -17,6 +17,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { toast } from "react-hot-toast";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { syncCartOnLogin } = useCart();
+  const { syncFavoritesOnLogin } = useFavorites();
 
   // Check if user came from checkout
   const fromCheckout = searchParams?.get("from") === "checkout";
@@ -191,8 +193,9 @@ function RegisterForm() {
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("custom-login"));
 
-        // Sync cart with database
+        // Sync cart and favorites with database
         await syncCartOnLogin();
+        await syncFavoritesOnLogin();
 
         toast.success("Registration successful!");
 

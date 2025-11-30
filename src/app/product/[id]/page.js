@@ -41,6 +41,7 @@ export default async function ProductPage({ params }) {
 
   // Transform the product data to match the expected format
   const formattedProduct = {
+    _id: product._id, // MongoDB ID
     id: product._id,
     name: product.name,
     price: product.price,
@@ -113,8 +114,8 @@ export default async function ProductPage({ params }) {
     collection: product.collection,
     category: product.category,
     reference: product.reference || "N/A",
-    // Add any additional fields that might be needed
-    ...product,
+    stock: product.stock || 0,
+    rating: product.rating || 0,
   };
 
   return <ProductDetails product={formattedProduct} />;

@@ -1,10 +1,18 @@
-'use client';
+"use client";
 
-import { Heart } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { Heart } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useFavorites } from "@/contexts/FavoritesContext";
+import { toast } from "react-hot-toast";
 
-export function CategoryLayout({ title, description, products = [], loading = false }) {
+export function CategoryLayout({
+  title,
+  description,
+  products = [],
+  loading = false,
+}) {
+  const { toggleFavorite, isFavorite } = useFavorites();
   return (
     <div className="w-full bg-white">
       {/* Category Header */}
@@ -30,13 +38,13 @@ export function CategoryLayout({ title, description, products = [], loading = fa
         ) : products.length > 0 ? (
           // Render products when not loading and products exist
           products.map((product) => (
-            <Link 
-              key={product._id} 
+            <Link
+              key={product._id}
               href={`/product/${product._id}`}
               className="group block"
               onClick={(e) => {
                 // Only navigate if the click wasn't on the wishlist button
-                if (e.target.closest('button')) {
+                if (e.target.closest("button")) {
                   e.preventDefault();
                 }
               }}
@@ -53,23 +61,37 @@ export function CategoryLayout({ title, description, products = [], loading = fa
                     priority
                   />
                 </div>
-                
+
                 {/* Product Info */}
                 <div className="p-3 mb-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-sm font-medium text-gray-900">{product.name}</h3>
+                      <h3 className="text-sm font-medium text-gray-900">
+                        {product.name}
+                      </h3>
                       <p className="text-sm text-gray-500">${product.price}</p>
                     </div>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 transition-colors z-10"
+                    <button
+                      className="transition-colors z-10"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle wishlist functionality here
-                        console.log('Add to wishlist', product.id);
+                        e.preventDefault();
+                        const isCurrentlyFavorited = isFavorite(product._id);
+                        toggleFavorite(product);
+                        toast.success(
+                          isCurrentlyFavorited
+                            ? "Removed from favorites"
+                            : "Added to favorites"
+                        );
                       }}
                     >
-                      <Heart className="h-5 w-5" />
+                      <Heart
+                        className={`h-5 w-5 ${
+                          isFavorite(product._id)
+                            ? "text-red-500 fill-red-500"
+                            : "text-gray-400 hover:text-red-500"
+                        }`}
+                      />
                     </button>
                   </div>
                 </div>
