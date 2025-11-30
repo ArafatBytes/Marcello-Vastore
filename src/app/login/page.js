@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { syncCartOnLogin } = useCart();
+  const { syncFavoritesOnLogin } = useFavorites();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -58,8 +60,9 @@ function LoginForm() {
         // Also trigger a custom event for immediate navbar update
         window.dispatchEvent(new Event("custom-login"));
 
-        // Sync cart with database
+        // Sync cart and favorites with database
         await syncCartOnLogin();
+        await syncFavoritesOnLogin();
 
         toast.success("Login successful!");
 

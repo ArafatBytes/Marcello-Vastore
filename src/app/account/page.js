@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic";
@@ -472,7 +473,8 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [user, setUser] = useState(null);
   const router = useRouter();
-  const { handleLogout } = useCart();
+  const { handleLogout: handleCartLogout } = useCart();
+  const { handleLogout: handleFavoritesLogout } = useFavorites();
 
   useEffect(() => {
     // Check login (JWT in localStorage or window.jwt)
@@ -500,8 +502,9 @@ export default function AccountPage() {
     sessionStorage.removeItem("jwt");
     window.jwt = null;
 
-    // Handle cart logout
-    handleLogout();
+    // Handle cart and favorites logout
+    handleCartLogout();
+    handleFavoritesLogout();
 
     window.dispatchEvent(new Event("storage"));
     router.push("/login");

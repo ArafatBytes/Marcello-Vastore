@@ -1,7 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import React from "react";
 import { useCart } from "@/contexts/CartContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
+import { useRecentlyViewed } from "@/contexts/RecentlyViewedContext";
+import { toast } from "react-hot-toast";
 
 // Helper function to determine if a color is light
 function isColorLight(hex) {
@@ -35,7 +38,23 @@ function isColorLight(hex) {
   }
 }
 import Image from "next/image";
+import Link from "next/link";
 import { Star, Heart, Minus, Plus, Check } from "lucide-react";
+
+// Helper function to generate collection URL
+function generateCollectionUrl(collection, category) {
+  if (!collection || !category) return "/";
+
+  // Convert "Atlier 1" to "atlier-1" and "Pants & Shorts" to "pants-shorts"
+  const collectionSlug = collection.toLowerCase().replace(/\s+/g, "-");
+  const categorySlug = category
+    .toLowerCase()
+    .replace(/\s*&\s*/g, "-") // Replace & with -
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/-+/g, "-"); // Remove duplicate hyphens
+
+  return `/collections/${collectionSlug}-${categorySlug}`;
+}
 
 export default function ProductDetails({ product }) {
   const [selectedColor, setSelectedColor] = useState(null);
@@ -43,11 +62,71 @@ export default function ProductDetails({ product }) {
   const [quantity, setQuantity] = useState(1);
   // Initialize with main image if available
   const [currentImage, setCurrentImage] = useState(0);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [error, setError] = useState("");
   const [buttonState, setButtonState] = useState("normal"); // normal, adding, added
-  
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loadingRelated, setLoadingRelated] = useState(true);
+
   const { addToCart } = useCart();
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const { addToRecentlyViewed, recentlyViewed } = useRecentlyViewed();
+
+  // Check if product is in favorites
+  const isWishlisted = isFavorite(product._id);
+
+  // Reset state when product changes (for navigation between products)
+  useEffect(() => {
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setQuantity(1);
+    setCurrentImage(0);
+    setError("");
+    setButtonState("normal");
+    // Scroll to top when product changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [product._id]);
+
+  // Add product to recently viewed when component mounts or product changes
+  useEffect(() => {
+    if (product && product._id) {
+      addToRecentlyViewed(product);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product._id, addToRecentlyViewed]);
+
+  // Fetch related products based on collection and category
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      if (!product._id) return;
+
+      setLoadingRelated(true);
+      try {
+        const params = new URLSearchParams({
+          productId: product._id,
+          limit: "4",
+        });
+
+        if (product.collection) {
+          params.append("collection", product.collection);
+        }
+        if (product.category) {
+          params.append("category", product.category);
+        }
+
+        const response = await fetch(`/api/products/related?${params}`);
+        if (response.ok) {
+          const data = await response.json();
+          setRelatedProducts(data.products || []);
+        }
+      } catch (error) {
+        console.error("Error fetching related products:", error);
+      } finally {
+        setLoadingRelated(false);
+      }
+    };
+
+    fetchRelatedProducts();
+  }, [product._id, product.collection, product.category]);
 
   // Ensure main image is always first
   const allImages = React.useMemo(() => {
@@ -83,22 +162,21 @@ export default function ProductDetails({ product }) {
     try {
       // Add to cart
       addToCart(product, selectedSize, selectedColor, quantity);
-      
+
       // Show success feedback
       setError("");
       setButtonState("added");
-      
+
       // Trigger cart animation
       triggerCartAnimation();
-      
+
       // Reset quantity to 1 after adding to cart
       setQuantity(1);
-      
+
       // Reset button after 1 second
       setTimeout(() => {
         setButtonState("normal");
       }, 1000);
-      
     } catch (error) {
       console.error("Error adding to cart:", error);
       setError("Failed to add item to cart. Please try again.");
@@ -109,12 +187,12 @@ export default function ProductDetails({ product }) {
   // Function to trigger cart animation
   const triggerCartAnimation = () => {
     // Create a temporary element that animates to the cart
-    const productImage = document.querySelector('.product-main-image');
-    const cartIcon = document.querySelector('.cart-icon');
-    
+    const productImage = document.querySelector(".product-main-image");
+    const cartIcon = document.querySelector(".cart-icon");
+
     if (productImage && cartIcon) {
-      const tempElement = document.createElement('div');
-      tempElement.className = 'cart-animation-item';
+      const tempElement = document.createElement("div");
+      tempElement.className = "cart-animation-item";
       tempElement.style.cssText = `
         position: fixed;
         width: 60px;
@@ -127,25 +205,25 @@ export default function ProductDetails({ product }) {
         pointer-events: none;
         transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
       `;
-      
+
       // Get positions
       const productRect = productImage.getBoundingClientRect();
       const cartRect = cartIcon.getBoundingClientRect();
-      
+
       // Set initial position
-      tempElement.style.left = productRect.left + 'px';
-      tempElement.style.top = productRect.top + 'px';
-      
+      tempElement.style.left = productRect.left + "px";
+      tempElement.style.top = productRect.top + "px";
+
       document.body.appendChild(tempElement);
-      
+
       // Animate to cart
       setTimeout(() => {
-        tempElement.style.left = cartRect.left + 'px';
-        tempElement.style.top = cartRect.top + 'px';
-        tempElement.style.transform = 'scale(0.3)';
-        tempElement.style.opacity = '0.8';
+        tempElement.style.left = cartRect.left + "px";
+        tempElement.style.top = cartRect.top + "px";
+        tempElement.style.transform = "scale(0.3)";
+        tempElement.style.opacity = "0.8";
       }, 50);
-      
+
       // Remove element after animation
       setTimeout(() => {
         document.body.removeChild(tempElement);
@@ -153,27 +231,10 @@ export default function ProductDetails({ product }) {
     }
   };
 
-  // Mock data for recently viewed products - replace with your actual data
-  const recentlyViewed = [
-    {
-      id: 2,
-      name: "Classic White Shirt",
-      price: 79.99,
-      image: "/placeholder-shirt-2.jpg",
-    },
-    {
-      id: 3,
-      name: "Casual Blue Shirt",
-      price: 84.99,
-      image: "/placeholder-shirt-3.jpg",
-    },
-    {
-      id: 4,
-      name: "Formal Black Shirt",
-      price: 89.99,
-      image: "/placeholder-shirt-4.jpg",
-    },
-  ];
+  // Get recently viewed products from context (excluding current product)
+  const filteredRecentlyViewed = recentlyViewed.filter(
+    (item) => item._id !== product._id
+  );
 
   return (
     <div className="w-full">
@@ -218,7 +279,15 @@ export default function ProductDetails({ product }) {
                 <p className="text-gray-600 mb-4">Ref. {product.reference}</p>
               </div>
               <button
-                onClick={() => setIsWishlisted(!isWishlisted)}
+                onClick={() => {
+                  const isCurrentlyFavorited = isWishlisted;
+                  toggleFavorite(product);
+                  toast.success(
+                    isCurrentlyFavorited
+                      ? "Removed from favorites"
+                      : "Added to favorites"
+                  );
+                }}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <Heart
@@ -318,7 +387,7 @@ export default function ProductDetails({ product }) {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <button 
+                <button
                   onClick={handleAddToCart}
                   disabled={buttonState !== "normal"}
                   className="bg-black text-white px-8 py-3 hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -326,10 +395,12 @@ export default function ProductDetails({ product }) {
                   {buttonState === "adding" && (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   )}
-                  {buttonState === "added" && (
-                    <Check className="w-4 h-4" />
-                  )}
-                  {buttonState === "adding" ? "ADDING..." : buttonState === "added" ? "ADDED" : "ADD TO BAG"}
+                  {buttonState === "added" && <Check className="w-4 h-4" />}
+                  {buttonState === "adding"
+                    ? "ADDING..."
+                    : buttonState === "added"
+                    ? "ADDED"
+                    : "ADD TO BAG"}
                 </button>
               </div>
 
@@ -357,72 +428,87 @@ export default function ProductDetails({ product }) {
       </div>
 
       {/* Recently Viewed Section */}
-      <div className="mt-16 border-t border-gray-200 pt-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <h2 className="text-xl font-medium mb-6">RECENTLY VIEWED</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {recentlyViewed.map((item) => (
-              <div key={item.id} className="group cursor-pointer">
-                <div className="relative aspect-square mb-2 overflow-hidden">
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover group-hover:opacity-90 transition-opacity"
-                  />
-                </div>
-                <h3 className="text-sm font-medium">{item.name}</h3>
-                <p className="text-sm text-gray-600">
-                  ${item.price.toFixed(2)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* View More Section */}
-      <div className="bg-gray-50 py-12 mt-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div>
-              <h2 className="text-2xl font-light mb-2">YOU MAY ALSO LIKE</h2>
-              <p className="text-gray-600 max-w-md">
-                Discover more products that match your style
-              </p>
+      {filteredRecentlyViewed.length > 0 && (
+        <div className="mt-16 border-t border-gray-200 pt-12">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+            <h2 className="text-xl font-medium mb-6">RECENTLY VIEWED</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredRecentlyViewed.map((item) => (
+                <Link
+                  key={item._id}
+                  href={`/product/${item._id}`}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative aspect-[3/4.5] mb-2 overflow-hidden bg-gray-100">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      className="object-cover group-hover:opacity-90 transition-opacity"
+                    />
+                  </div>
+                  <h3 className="text-sm font-medium">{item.name}</h3>
+                  <p className="text-sm text-gray-600">${item.price}</p>
+                </Link>
+              ))}
             </div>
-            <button className="border border-black px-6 py-2 text-sm font-medium hover:bg-black hover:text-white transition-colors">
-              VIEW MORE
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
-            {[
-              ...recentlyViewed,
-              {
-                id: 5,
-                name: "Premium Linen Shirt",
-                price: 94.99,
-                image: "/placeholder-shirt-1.jpg",
-              },
-            ].map((item) => (
-              <div key={item.id} className="group">
-                <div className="relative aspect-square mb-3 overflow-hidden">
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover group-hover:opacity-90 transition-opacity"
-                  />
-                </div>
-                <h3 className="text-sm font-medium">{item.name}</h3>
-                <p className="text-sm text-gray-600">
-                  ${item.price.toFixed(2)}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* You May Also Like Section - Related Products */}
+      {(relatedProducts.length > 0 || loadingRelated) && (
+        <div className="bg-gray-50 py-12 mt-12">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+              <div>
+                <h2 className="text-2xl font-light mb-2">YOU MAY ALSO LIKE</h2>
+                <p className="text-gray-600 max-w-md">
+                  Discover more products that match your style
+                </p>
+              </div>
+              <Link
+                href={generateCollectionUrl(
+                  product.collection,
+                  product.category
+                )}
+                className="border border-black px-6 py-2 text-sm font-medium hover:bg-black hover:text-white transition-colors"
+              >
+                VIEW MORE
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8">
+              {loadingRelated
+                ? // Loading skeleton
+                  [...Array(4)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="relative aspect-[3/4.5] mb-3 bg-gray-200 rounded"></div>
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ))
+                : relatedProducts.map((item) => (
+                    <Link
+                      key={item._id}
+                      href={`/product/${item._id}`}
+                      className="group"
+                    >
+                      <div className="relative aspect-[3/4.5] mb-3 overflow-hidden bg-gray-100">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="object-cover group-hover:opacity-90 transition-opacity"
+                        />
+                      </div>
+                      <h3 className="text-sm font-medium">{item.name}</h3>
+                      <p className="text-sm text-gray-600">${item.price}</p>
+                    </Link>
+                  ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
